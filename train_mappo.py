@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
 @Description: 使用 MAPPO 算法进行训练
-@LastEditTime: 2024-04-15 23:50:08
+@LastEditTime: 2024-04-16 13:09:35
 '''
 import tqdm
 import time
@@ -36,15 +36,15 @@ def train():  # noqa: F821
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     
     # 超参数设置
-    num_envs = 5 # 同时开启的环境个数
+    num_envs = 1 # 同时开启的环境个数
     n_agents = 3 # 环境 agent 的个数
     num_seconds = 1500 # 仿真时间, 大致 300
-    n_iters = 150
-    frames_per_batch = 3_000 # 10_000, 60_000
+    n_iters = 300
+    frames_per_batch = 3_000 # 差不多是 2 轮游戏
     memory_size = frames_per_batch
     total_frames = frames_per_batch*n_iters
-    minibatch_size = 1028 # multi-agent 这个参数稍微大一些, 至少包含一半的数据
-    num_epochs = 15 # optimization steps per batch of data collected, 10-15 即可
+    minibatch_size = 1024 # multi-agent 这个参数稍微大一些, 至少包含一半的数据
+    num_epochs = 10 # optimization steps per batch of data collected, 10-15 即可
 
     # Create Env
     sumo_cfg = path_convert("./sumo_nets/3_ints/env/three_junctions.sumocfg")
@@ -58,7 +58,7 @@ def train():  # noqa: F821
         net_file=net_file,
         num_seconds=num_seconds,
         tls_ids=['J1', 'J2', 'J3'],
-        use_gui=False,
+        use_gui=True,
         log_file=log_path,
         device=device
     )
@@ -183,9 +183,10 @@ def train():  # noqa: F821
             step=i,
         )
 
-
-        policy_gen.save_model(path_convert('./mappo_models/actor.pkl'))
-        value_gen.save_model(path_convert('./mappo_models/critic.pkl'))
+        # 保存模型
+        if i % 10 == 0:
+            policy_gen.save_model(path_convert(f'./mappo_models/{i}_actor.pkl'))
+            value_gen.save_model(path_convert(f'./mappo_models/{i}_critic.pkl'))
 
         sampling_start = time.time()
 

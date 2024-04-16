@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 03:58:19
 @Description: 创建多智能体的环境
-@LastEditTime: 2024-04-15 20:53:16
+@LastEditTime: 2024-04-16 13:46:35
 '''
 from typing import List
 from env_utils.tsc_env import TSCEnvironment
@@ -36,9 +36,9 @@ def make_multi_envs(
     tsc_env = TSCEnvironmentPZ(tsc_env)
     tsc_env = PettingZooWrapper(
         tsc_env, 
-        group_map={'agents':tls_ids},
+        group_map={'agents':tls_ids}, # agent 可以分类, 例如不同动作空间大小
         categorical_actions=False,
-        use_mask=True, # 智能体数量动态变化
+        use_mask=False, # 智能体数量动态变化, 手动将 obs 和 reward 设置为 0
         device=device,
         done_on_any=False # 所有都结束才结束
     )

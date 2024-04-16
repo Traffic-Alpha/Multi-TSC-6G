@@ -6,7 +6,7 @@
     1. https://pettingzoo.farama.org/content/environment_creation/
     2. https://pettingzoo.farama.org/tutorials/custom_environment/3-action-masking/ (添加 action mask)
 => 由于不是每一个时刻所有 TSC 都可以做动作, 这里我们就只返回可以做动作的 TSC 的信息, 也就是 agent 的数量是一直在改变的
-@LastEditTime: 2024-04-15 04:50:04
+@LastEditTime: 2024-04-16 13:51:31
 '''
 import functools
 import numpy as np
@@ -26,6 +26,7 @@ class TSCEnvironmentPZ(ParallelEnv):
         
         # agent id == tls id (agent id 就是所有信号灯的 id)
         self.possible_agents = self.env.tls_ids
+        self.agents = self.possible_agents.copy()
 
         # spaces
         self.action_spaces = {
@@ -87,27 +88,36 @@ class TSCEnvironmentPZ(ParallelEnv):
         self.env.close()
 
     def step(self, actions:Dict[str, int]):
+        pz_terminations = {}
+        pz_truncations = {}
         """Step the environment.
         """
         (processed_local_obs, processed_global_obs), rewards, terminations, truncations, infos = self.env.step(actions)
         
-        # agent 数量发生改变
-        self.agents = []
+        # agent 数量发生改变 (但是这里我自己手动把不存在的 agent 的信息设置为 0)
+        live_agents = []
         for _tls_id in self.possible_agents:
             if infos[_tls_id]['can_perform_action']:
-                self.agents.append(_tls_id)
+                live_agents.append(_tls_id) # 存活的 agent
+        
+        # 将不能做动作的 agent 设置为 0
+        pz_observations = {}
+        pz_rewards = {}
         
         # 处理 observation
-        observations = {
-            _tls_id: {
-                'local': processed_local_obs[_tls_id],
-                'global': processed_global_obs,
+        for _tls_id in self.possible_agents:
+            if _tls_id in live_agents:
+                pz_observations[_tls_id] = {
+                    'local': processed_local_obs[_tls_id],
+                    'global': processed_global_obs,
                 }
-            for _tls_id in self.agents
-        }
-        rewards = {_agent_id: rewards[_agent_id] for _agent_id in self.agents}
-        terminations = {_agent_id: terminations[_agent_id] for _agent_id in self.agents}
-        truncations = {_agent_id: truncations[_agent_id] for _agent_id in self.agents}
-        infos = {_agent_id: infos[_agent_id] for _agent_id in self.agents}
+                pz_rewards[_tls_id] = rewards[_tls_id]
+            else:
+                pz_observations[_tls_id] = {
+                    'local': np.zeros((5,12,7)),
+                    'global': np.zeros((20,5,11,3)),
+                }   
+                pz_rewards[_tls_id] = 0       
+
         
-        return observations, rewards, terminations, truncations, infos
+        return pz_observations, pz_rewards, terminations, truncations, infos
