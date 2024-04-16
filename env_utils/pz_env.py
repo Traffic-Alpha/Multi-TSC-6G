@@ -6,7 +6,7 @@
     1. https://pettingzoo.farama.org/content/environment_creation/
     2. https://pettingzoo.farama.org/tutorials/custom_environment/3-action-masking/ (添加 action mask)
 => 由于不是每一个时刻所有 TSC 都可以做动作, 这里我们就只返回可以做动作的 TSC 的信息, 也就是 agent 的数量是一直在改变的
-@LastEditTime: 2024-04-16 13:51:31
+@LastEditTime: 2024-04-17 03:52:26
 '''
 import functools
 import numpy as np
@@ -30,7 +30,7 @@ class TSCEnvironmentPZ(ParallelEnv):
 
         # spaces
         self.action_spaces = {
-            _tls_id:gym.spaces.Discrete(2) 
+            _tls_id:gym.spaces.Discrete(3) # 最后一个动作专门为了跳过当前的状态 
             for _tls_id in self.env.tls_ids
         } # 这里都是 2 相位的信号灯
         self.observation_spaces = {
@@ -54,7 +54,10 @@ class TSCEnvironmentPZ(ParallelEnv):
         """
         processed_local_obs, processed_global_obs = self.env.reset()
         agent_mask = {
-            _tls_id:{'can_perform_action': True} 
+            _tls_id:{
+                'can_perform_action': True, 
+                "action_mask": [True, True, False]
+            }
             for _tls_id in self.possible_agents
         }
         self.agents = self.possible_agents[:] # 可以做动作的 agent
@@ -88,8 +91,6 @@ class TSCEnvironmentPZ(ParallelEnv):
         self.env.close()
 
     def step(self, actions:Dict[str, int]):
-        pz_terminations = {}
-        pz_truncations = {}
         """Step the environment.
         """
         (processed_local_obs, processed_global_obs), rewards, terminations, truncations, infos = self.env.step(actions)
@@ -99,7 +100,10 @@ class TSCEnvironmentPZ(ParallelEnv):
         for _tls_id in self.possible_agents:
             if infos[_tls_id]['can_perform_action']:
                 live_agents.append(_tls_id) # 存活的 agent
-        
+                infos[_tls_id]['action_mask'] = [True, True, False] # Note: 最后一个 action 是留给不能做动作的 agent
+            else:
+                infos[_tls_id]['action_mask'] = [False, False, True]
+
         # 将不能做动作的 agent 设置为 0
         pz_observations = {}
         pz_rewards = {}
@@ -117,7 +121,7 @@ class TSCEnvironmentPZ(ParallelEnv):
                     'local': np.zeros((5,12,7)),
                     'global': np.zeros((20,5,11,3)),
                 }   
-                pz_rewards[_tls_id] = 0       
+                pz_rewards[_tls_id] = 0             
 
         
         return pz_observations, pz_rewards, terminations, truncations, infos

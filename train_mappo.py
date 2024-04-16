@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
 @Description: 使用 MAPPO 算法进行训练
-@LastEditTime: 2024-04-16 13:09:35
+@LastEditTime: 2024-04-17 03:19:47
 '''
 import tqdm
 import time
@@ -40,10 +40,10 @@ def train():  # noqa: F821
     n_agents = 3 # 环境 agent 的个数
     num_seconds = 1500 # 仿真时间, 大致 300
     n_iters = 300
-    frames_per_batch = 3_000 # 差不多是 2 轮游戏
+    frames_per_batch = 20_000 # 差不多是 2 轮游戏
     memory_size = frames_per_batch
     total_frames = frames_per_batch*n_iters
-    minibatch_size = 1024 # multi-agent 这个参数稍微大一些, 至少包含一半的数据
+    minibatch_size = num_envs*500 # multi-agent 这个参数稍微大一些, 至少包含一半的数据
     num_epochs = 10 # optimization steps per batch of data collected, 10-15 即可
 
     # Create Env
@@ -68,6 +68,7 @@ def train():  # noqa: F821
     # #################
     policy_gen = policy_module(n_agents, device)
     policy = policy_gen.make_policy_module()
+    
     value_gen = critic_module(device)
     value_module = value_gen.make_critic_module()
     

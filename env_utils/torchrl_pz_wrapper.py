@@ -389,7 +389,7 @@ class PettingZooWrapper(_EnvWrapper):
             isinstance(group_observation_inner_spec, CompositeSpec)
             and "action_mask" in group_observation_inner_spec.keys()
         ):
-            self.has_action_mask[group_name] = True
+            self.has_action_mask[group_name] = True # TODO, 这里用到了 action mask
             del group_observation_inner_spec["action_mask"]
             group_observation_spec["action_mask"] = DiscreteTensorSpec(
                 n=2,
@@ -615,14 +615,14 @@ class PettingZooWrapper(_EnvWrapper):
                 info_dict,
             ) = self._step_aec(tensordict)
 
-        # We start with zeroed data and fill in the data for alive agents
+        # We start with zeroed data and fill in the data for alive agents (初始为全 0, 只有 alive agent 才会进行更新)
         tensordict_out = self.cached_step_output_zero.clone()
         # Update the "mask" for non-acting agents, 直接更新 tensordict_out 中的 mask
         self._update_agent_mask(tensordict_out)
         # Update the "action_mask" for non-available actions
         observation_dict, info_dict = self._update_action_mask(
             tensordict_out, observation_dict, info_dict
-        )
+        ) # 这里 observation_dict 里面就是 agent 的信息
 
         # Now we get the data
         for group, agent_names in self.group_map.items():
@@ -806,7 +806,7 @@ class PettingZooWrapper(_EnvWrapper):
                                 device=self.device,
                                 dtype=torch.bool,
                             )
-                        del agent_info["action_mask"]
+                        del agent_info["action_mask"] # 这里会删除 info 里面的 action mask
 
                 group_action_spec = self.input_spec["full_action_spec", group, "action"]
                 if isinstance(
@@ -818,6 +818,8 @@ class PettingZooWrapper(_EnvWrapper):
         return observation_dict, info_dict
 
     def _update_agent_mask(self, td):
+        """这里 group_mask 会更新 tensordict_out["agents"]["mask"] 里面的内容
+        """
         if self.use_mask:
             # In AEC only one agent acts, in parallel env self.agents contains the agents alive
             agents_acting = self.agents if self.parallel else [self.agent_selection]

@@ -4,7 +4,7 @@
 @Description: 创建 Actor Module
 1. 不是中心化, 即每个 agent 根据自己的 obs 进行决策
 2. 模型的权重是共享的, 因为 agent 是相同的类型, 所以只有一个 actor 的权重即可
-@LastEditTime: 2024-04-15 23:46:19
+@LastEditTime: 2024-04-17 03:47:48
 '''
 import torch
 from torch import nn
@@ -16,6 +16,7 @@ from torchrl.data import OneHotDiscreteTensorSpec
 from torchrl.modules import (
     OneHotCategorical,
     ProbabilisticActor,
+    MaskedOneHotCategorical
 )
 
 class ActorNetwork(nn.Module):
@@ -23,7 +24,7 @@ class ActorNetwork(nn.Module):
         super(ActorNetwork, self).__init__()
         self.conv = nn.Conv2d(in_channels=5, out_channels=32, kernel_size=(1, 7))
         self.pool = nn.AdaptiveAvgPool1d(output_size=1)
-        self.fc = nn.Linear(in_features=32, out_features=2)
+        self.fc = nn.Linear(in_features=32, out_features=3)
 
     def forward(self, x):
         env_batch_nagents = list(x.shape[:-3]) # 包含 n_envs, batchsize 和 n_agents
@@ -31,13 +32,19 @@ class ActorNetwork(nn.Module):
 
         x = x.view(-1, timeseries, movement, feature_num) # (batch_size, agent_num, 5, 12, 7)
 
+        # TODO, 要删掉
+        print(f"Actor Network Input: {x.shape}\n {x[0][0]}\n{x[0][1]}\n{x[0][2]}")
+
         x = self.conv(x) # (batch_size*agent_num, 5, 12, 7) --> (batch_size*agent_num, 32, 12, 1)
-        x = F.relu(x)
+        x = F.tanh(x)
         x = x.squeeze(-1) # (batch_size*agent_num, 32, 12)
         x = self.pool(x) # (batch_size*agent_num, 32, 1)
         x = x.squeeze(-1) # (batch_size*agent_num, 32)
+        x = F.tanh(x)
         x = self.fc(x) # (batch_size*agent_num, 2), 2 是动作个数
-
+        
+        # TODO, 要删掉
+        print(f"Actor Network Output:\n {x}")
         return x.view(*env_batch_nagents, -1)
 
 
@@ -60,9 +67,12 @@ class policy_module():
         policy = ProbabilisticActor(
             module=policy_module,
             spec=unbatched_action_spec, # CompositeSpec({("agents", "action"): env.action_spec})
-            in_keys=[("agents", "logits")],
+            in_keys={
+                "logits":("agents", "logits"), 
+                "mask":("agents", "action_mask")
+            }, # 这里需要传入一个 mask, 根据 agent mask 自己进行计算
             out_keys=[("agents", "action")], # env.action_key
-            distribution_class=OneHotCategorical,
+            distribution_class=MaskedOneHotCategorical,
             return_log_prob=True,
         )
         return policy
