@@ -1,0 +1,13 @@
+{
+    "sumocfg": "./sumo_nets/3_ints_4phases/env/three_junctions.sumocfg",
+    "sumonet": "./sumo_nets/3_ints_4phases/env/three_junctions.net.xml",
+    "simulation_time": 1500,
+    "simulation_steps": 200,
+    "junction_ids": ["J1", "J2", "J3"],
+    "action_space": {
+      "J1": 4,
+      "J2": 4,
+      "J3": 4
+    }
+  }
+  
