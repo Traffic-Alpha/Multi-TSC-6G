@@ -6,6 +6,8 @@ __pycache__/
 .idea
 *.csv
 *.pkl
+mappo_tensorboard/
+mappo_models/
 
 # sumo output
 *.out.xml
