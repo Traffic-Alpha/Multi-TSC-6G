@@ -2,12 +2,13 @@
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
 @Description: 使用 MAPPO 算法进行训练
-@LastEditTime: 2024-04-17 03:19:47
+@LastEditTime: 2024-04-25 17:28:37
 '''
+import os
+import json
 import tqdm
 import time
 import torch
-from loguru import logger
 
 from torchrl.collectors import SyncDataCollector
 from torchrl.data import TensorDictReplayBuffer
@@ -20,9 +21,9 @@ from torchrl.record.loggers import generate_exp_name, get_logger
 from env_utils.make_multi_tsc_env import make_parallel_env
 
 # actor & critic
+from train_utils.make_log import log_training
 from train_utils.make_actor_module import policy_module
 from train_utils.make_critic_module import critic_module
-from train_utils.make_log import log_evaluation, log_training
 
 from tshub.utils.get_abs_path import get_abs_path
 from tshub.utils.init_log import set_logger
@@ -31,25 +32,43 @@ path_convert = get_abs_path(__file__)
 set_logger(path_convert('./'), file_log_level="INFO", terminal_log_level="WARNING")
 
 
-def train():  # noqa: F821
-    # Device
+def load_environment_config(env_config_path):
+    env_config_path = path_convert(f'./configs/env_configs/{env_config_path}')
+    with open(env_config_path, 'r') as file:
+        config = json.load(file)
+    return config
+
+def train(exp_config_path:str):  # noqa: F821
+    # 读取实验配置文件
+    with open(exp_config_path, 'r') as file:
+        exp_config = json.load(file)
+    env_config = load_environment_config(exp_config['environment_name'])
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     
     # 超参数设置
-    num_envs = 1 # 同时开启的环境个数
-    n_agents = 3 # 环境 agent 的个数
-    num_seconds = 1500 # 仿真时间, 大致 300
-    n_iters = 300
-    frames_per_batch = 20_000 # 差不多是 2 轮游戏
+    num_envs = 16 # 同时开启的环境个数
+    n_iters = 100 # 控制训练的时间长度
+
+    exp_name = exp_config["experiment_name"]
+    model_name = exp_config["model_name"]
+
+    action_space = env_config["action_space"]
+    tls_ids = env_config["junction_ids"]
+    num_seconds = env_config["simulation_time"] # 仿真时间
+    frames_per_batch = num_envs*env_config["simulation_steps"]*2 # 差不多是 2 轮游戏
     memory_size = frames_per_batch
     total_frames = frames_per_batch*n_iters
-    minibatch_size = num_envs*500 # multi-agent 这个参数稍微大一些, 至少包含一半的数据
+    minibatch_size = num_envs*(env_config["simulation_steps"]//2) # multi-agent 这个参数稍微大一些, 至少包含一半的数据
     num_epochs = 10 # optimization steps per batch of data collected, 10-15 即可
 
     # Create Env
-    sumo_cfg = path_convert("./sumo_nets/3_ints/env/three_junctions.sumocfg")
-    net_file = path_convert("./sumo_nets/3_ints/env/three_junctions.net.xml")
-    log_path = path_convert('./log/train_mixed/')
+    sumo_cfg = path_convert(env_config["sumocfg"])
+    net_file = path_convert(env_config["sumonet"])
+    log_path = path_convert(f'./log/{exp_name}/')
+    model_path = path_convert(f'./mappo_models/{exp_name}/') # 模型存储的路径
+
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
 
     # 训练使用的环境
     env = make_parallel_env(
@@ -57,8 +76,9 @@ def train():  # noqa: F821
         sumo_cfg=sumo_cfg,
         net_file=net_file,
         num_seconds=num_seconds,
-        tls_ids=['J1', 'J2', 'J3'],
-        use_gui=True,
+        tls_ids=tls_ids,
+        action_space=action_space,
+        use_gui=False,
         log_file=log_path,
         device=device
     )
@@ -66,10 +86,11 @@ def train():  # noqa: F821
     # #################
     # Policy and Critic
     # #################
-    policy_gen = policy_module(n_agents, device)
+    action_spec = env.action_spec
+    policy_gen = policy_module(model_name, action_spec, device)
     policy = policy_gen.make_policy_module()
     
-    value_gen = critic_module(device)
+    value_gen = critic_module(model_name, device)
     value_module = value_gen.make_critic_module()
     
     # Data Collector
@@ -94,8 +115,8 @@ def train():  # noqa: F821
         actor=policy,
         critic=value_module,
         clip_epsilon=0.2,
-        entropy_coef=0,
-        normalize_advantage=False,
+        entropy_coef=0.01,
+        normalize_advantage=True,
     )
     loss_module.set_keys(
         reward=env.reward_key,
@@ -185,12 +206,13 @@ def train():  # noqa: F821
         )
 
         # 保存模型
-        if i % 10 == 0:
-            policy_gen.save_model(path_convert(f'./mappo_models/{i}_actor.pkl'))
-            value_gen.save_model(path_convert(f'./mappo_models/{i}_critic.pkl'))
+        if i % 5 == 0:
+            policy_gen.save_model(os.path.join(model_path,f'{i}_actor.pkl'))
+            value_gen.save_model(os.path.join(model_path,f'{i}_critic.pkl'))
 
         sampling_start = time.time()
 
 
 if __name__ == "__main__":
-    train()
+    exp_name = "1_occmlp__3ints"
+    train(exp_config_path=path_convert(f'./configs/exp_configs/{exp_name}.json'))

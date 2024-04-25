@@ -2,8 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-10 00:21:49
 @Description: 根据 state 提取 global info 和 local info
-TODO, state 里面的时间序列需要处理, 因为 can perform action 不是一只可以执行动作的
-@LastEditTime: 2024-04-15 17:44:18
+@LastEditTime: 2024-04-25 16:54:06
 '''
 import time
 import numpy as np
@@ -19,6 +18,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         super().__init__(env)
         self.tls_ids = self.env.tls_ids # 多路口的 ids
         self.cell_length = cell_length # 每个 cell 的长度
+        self.filepath = filepath
 
         # 记录时序数据
         self.local_obs_timeseries = TimeSeriesData(N=10) # 将局部信息全部保存起来
@@ -33,12 +33,13 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         # #######
         # Writer
         # #######
-        self.t_start = time.time()
-        self.results_writer = ResultsWriter(
-                filepath,
-                header={"t_start": self.t_start},
-        )
-        self.rewards_writer = list()
+        if self.filepath is not None:
+            self.t_start = time.time()
+            self.results_writer = ResultsWriter(
+                    filepath,
+                    header={"t_start": self.t_start},
+            )
+            self.rewards_writer = list()
 
     def __initialize_edge_cells(self):
         """根据道路信息初始化 edge cell 的信息, 这里每个时刻都需要进行初始化
@@ -48,7 +49,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
             edge_id = lane_info['edge_id']
             # num_cells = int(lane_info['length'] // self.cell_length)+1
             assert  self.max_num_cells != -1, '检查代码关于 max_num_cells 的部分, 现在是 -1.'
-            num_cells = int(self.max_num_cells) # 统一大小
+            num_cells = int(self.max_num_cells) # 统一大小, 这样不同 lane 的长度是一样的
             if edge_id not in edge_cells:
                 edge_cells[edge_id] = [
                     {
@@ -107,12 +108,12 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
             process_local_obs = []
             for _movement_index, _movement_id in enumerate(self.tls_movement_id[_tls_id]):
                 occupancy = tls_states[_tls_id]['last_step_occupancy'][_movement_index]/100
+                mean_speed = tls_states[_tls_id]['last_step_mean_speed'][_movement_index] # 获得平均速度
                 direction_flags = direction_to_flags(tls_states[_tls_id]['movement_directions'][_movement_id])
                 lane_numbers = tls_states[_tls_id]['movement_lane_numbers'][_movement_id]/5 # 车道数 (默认不会超过 5 个车道)
                 is_now_phase = int(tls_states[_tls_id]['this_phase'][_movement_index])
-                is_next_phase = int(tls_states[_tls_id]['next_phase'][_movement_index])
                 # 将其添加到 obs 中
-                process_local_obs.append([occupancy, *direction_flags, lane_numbers, is_now_phase, is_next_phase]) # 某个 movement 对应的信息
+                process_local_obs.append([occupancy, mean_speed, *direction_flags, lane_numbers, is_now_phase]) # 某个 movement 对应的信息
                 
             # 不是四岔路, 进行不全
             for _ in range(12 - len(process_local_obs)):
@@ -192,7 +193,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         
         # TODO, 这里需要根据不同的路网手动调整 (自动化代码写得太复杂了, 不想写了!!!)
         # TODO, 别问 reset 状态为什么是随机的, 因为我发现随机会比全 0 好 (别问为什么, 我也不知道, 就是实验结果!!!)
-        processed_local_obs = {_tls_id:np.random.randn(5,12,7) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 7 是每个 movement 的特征
+        processed_local_obs = {_tls_id:np.random.randn(5,12,7) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 6 是每个 movement 的特征
         processed_global_obs = np.random.randn(len(global_obs),5,int(self.max_num_cells),3) # len(global_obs): edge 的数量, 5 是时间序列, self.max_num_cells 是 cell 数量, 3 是每个 edge 的特征
         return (processed_local_obs, processed_global_obs)
     
@@ -247,12 +248,13 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
             infos[_tls_id]['can_perform_action'] = _can_perform
 
         # Writer
-        self.rewards_writer.append(float(sum(rewards.values())))
-        if all(dones.values()):
-            ep_rew = sum(self.rewards_writer)
-            ep_len = len(self.rewards_writer)
-            ep_info = {"r": round(ep_rew, 6), "l": ep_len, "t": round(time.time() - self.t_start, 6)}
-            self.results_writer.write_row(ep_info)
-            self.rewards_writer = list()
+        if self.filepath is not None:
+            self.rewards_writer.append(float(sum(rewards.values())))
+            if all(dones.values()):
+                ep_rew = sum(self.rewards_writer)
+                ep_len = len(self.rewards_writer)
+                ep_info = {"r": round(ep_rew, 6), "l": ep_len, "t": round(time.time() - self.t_start, 6)}
+                self.results_writer.write_row(ep_info)
+                self.rewards_writer = list()
             
         return (processed_local_obs, processed_global_obs), rewards, truncateds, dones, infos

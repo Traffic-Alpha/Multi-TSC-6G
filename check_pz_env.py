@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-14 17:56:50
 @Description: 检查 petting zoo 的环境
-@LastEditTime: 2024-04-15 03:55:50
+@LastEditTime: 2024-04-17 05:17:33
 '''
 import numpy as np
 from typing import List
@@ -21,6 +21,7 @@ set_logger(path_convert('./'))
 def make_pz_envs(
         tls_ids:List[str], 
         sumo_cfg:str, net_file:str,
+        log_file:str, 
         num_seconds:int, use_gui:bool,
     ):
     tsc_env = TSCEnvironment(
@@ -31,7 +32,7 @@ def make_pz_envs(
         tls_action_type='choose_next_phase',
         use_gui=use_gui
     )
-    tsc_env = GlobalLocalInfoWrapper(tsc_env, cell_length=20)
+    tsc_env = GlobalLocalInfoWrapper(tsc_env, filepath=log_file, cell_length=20)
     tsc_env = TSCEnvironmentPZ(tsc_env)
 
     return tsc_env
@@ -44,8 +45,9 @@ if __name__ == '__main__':
         tls_ids=['J1', 'J2', 'J3'], # 控制 3 个路口, 都是 2 相位
         sumo_cfg=sumo_cfg,
         net_file=net_file,
+        log_file=log_path,
         num_seconds=2000,
-        use_gui=True,
+        use_gui=False,
     )
 
     # parallel_api_test(env, num_cycles=1_000_000) # 这种 agent 变化会导致无法通过 test, 但是可以在 torchrl 里面使用

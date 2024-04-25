@@ -1,0 +1,6 @@
+{
+    "experiment_name": "Exp1",
+    "environment_name": "3_ints_4phases.json",
+    "model_name": "local_occ_mlp"
+}
+  

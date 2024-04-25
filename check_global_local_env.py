@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-09 22:32:16
 @Description: 检查 Global Local Env, 环境的特征是否提取正确
-@LastEditTime: 2024-04-15 03:57:25
+@LastEditTime: 2024-04-24 22:26:08
 '''
 import numpy as np
 from typing import List
@@ -21,15 +21,16 @@ def make_multi_envs(
         sumo_cfg:str, net_file:str,
         num_seconds:int, use_gui:bool,
     ):
+    log_file = path_convert('./log/3_ints_wrapper')
     tsc_env = TSCEnvironment(
         sumo_cfg=sumo_cfg,
         net_file=net_file, # 用于加载路网的信息
         num_seconds=num_seconds,
         tls_ids=tls_ids,
-        tls_action_type='choose_next_phase',
+        tls_action_type='choose_next_phase_syn',
         use_gui=use_gui
     )
-    tsc_env = GlobalLocalInfoWrapper(tsc_env, cell_length=20)
+    tsc_env = GlobalLocalInfoWrapper(tsc_env, filepath=log_file, cell_length=20)
 
     return tsc_env
 
@@ -42,7 +43,7 @@ if __name__ == '__main__':
         sumo_cfg=sumo_cfg,
         net_file=net_file,
         num_seconds=2000,
-        use_gui=True,
+        use_gui=False,
     )
 
     done = False
