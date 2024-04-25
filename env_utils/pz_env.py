@@ -6,7 +6,7 @@
     1. https://pettingzoo.farama.org/content/environment_creation/
     2. https://pettingzoo.farama.org/tutorials/custom_environment/3-action-masking/ (添加 action mask)
 => 由于不是每一个时刻所有 TSC 都可以做动作, 这里我们就只返回可以做动作的 TSC 的信息, 也就是 agent 的数量是一直在改变的
-@LastEditTime: 2024-04-25 15:55:47
+@LastEditTime: 2024-04-25 17:17:54
 '''
 import functools
 import numpy as np
@@ -20,7 +20,7 @@ class TSCEnvironmentPZ(ParallelEnv):
         "name": "multi_agent_tsc_env",
     }
     
-    def __init__(self, env):
+    def __init__(self, env, action_space):
         super().__init__()
         self.env = env
         self.render_mode = None
@@ -31,7 +31,7 @@ class TSCEnvironmentPZ(ParallelEnv):
 
         # spaces
         self.action_spaces = {
-            _tls_id:gym.spaces.Discrete(4) # 每一个信号灯是两个相位
+            _tls_id:gym.spaces.Discrete(action_space[_tls_id]) # 每一个信号灯是两个相位
             for _tls_id in self.env.tls_ids
         }
         self.observation_spaces = {

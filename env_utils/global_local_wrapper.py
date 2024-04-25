@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-10 00:21:49
 @Description: 根据 state 提取 global info 和 local info
-@LastEditTime: 2024-04-25 15:54:49
+@LastEditTime: 2024-04-25 16:54:06
 '''
 import time
 import numpy as np
@@ -193,7 +193,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         
         # TODO, 这里需要根据不同的路网手动调整 (自动化代码写得太复杂了, 不想写了!!!)
         # TODO, 别问 reset 状态为什么是随机的, 因为我发现随机会比全 0 好 (别问为什么, 我也不知道, 就是实验结果!!!)
-        processed_local_obs = {_tls_id:np.random.randn(5,12,6) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 6 是每个 movement 的特征
+        processed_local_obs = {_tls_id:np.random.randn(5,12,7) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 6 是每个 movement 的特征
         processed_global_obs = np.random.randn(len(global_obs),5,int(self.max_num_cells),3) # len(global_obs): edge 的数量, 5 是时间序列, self.max_num_cells 是 cell 数量, 3 是每个 edge 的特征
         return (processed_local_obs, processed_global_obs)
     
