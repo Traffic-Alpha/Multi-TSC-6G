@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 23:41:58
 @Description: 加载 MAPPO 模型进行测试
-@LastEditTime: 2024-04-25 17:31:59
+@LastEditTime: 2024-04-25 19:46:48
 '''
 import os
 import json
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # 2. Load Model Dict
     action_spec = tsc_env.action_spec
     policy_gen = policy_module(model_name, action_spec, device)
-    policy_gen.load_model(os.path.join(model_path, "0_actor.pkl"))
+    policy_gen.load_model(os.path.join(model_path, "95_actor.pkl"))
     policy = policy_gen.make_policy_module()
 
     # 3. Simulation with environment using the policy, ExplorationType.MODE, ExplorationType.RANDOM
