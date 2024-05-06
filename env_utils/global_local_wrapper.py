@@ -1,16 +1,19 @@
 '''
 @Author: WANG Maonan
 @Date: 2024-04-10 00:21:49
-@Description: 根据 state 提取 global info 和 local info
-@LastEditTime: 2024-04-25 16:54:06
+@Description: 根据 state 提取 global info 和 local info, 具体来说分为三类特征:
+1. 微观特征: 车辆的属性
+2. 中观特征: 路段摄像头的数据
+3. 宏观特征: 6G as a sensor
+@LastEditTime: 2024-05-06 21:33:24
 '''
 import time
 import numpy as np
 import gymnasium as gym
-from typing import Dict
+from typing import Dict, Any
 from stable_baselines3.common.monitor import ResultsWriter
 
-from ._utils import TimeSeriesData, direction_to_flags, merge_local_data
+from ._utils import TimeSeriesData, direction_to_flags, merge_local_data, one_hot_encode
 
 
 class GlobalLocalInfoWrapper(gym.Wrapper):
@@ -21,12 +24,14 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         self.filepath = filepath
 
         # 记录时序数据
+        self.vehicle_timeseries = TimeSeriesData(N=10) # 记录车辆的数据
         self.local_obs_timeseries = TimeSeriesData(N=10) # 将局部信息全部保存起来
         self.edge_cells_timeseries = TimeSeriesData(N=10) # edge cell 的结果
 
         # reset init
         self.node_infos = None # 节点的信息
         self.lane_infos = None # 地图车道的原始信息
+        self.road_ids = None # 地图所有的 edge id, 用于做 one-hot 向量, 表明车辆的位置
         self.tls_movement_id = {} # 每个路口的 movement 顺序
         self.max_num_cells = -1 # 最大的 cell 个数, 确保 global info 大小一样
 
@@ -61,11 +66,40 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
                 ] # 初始化每一个 cell 的信息
         return edge_cells
     
-    def get_edge_cells(self, vehicle_data):
+    def get_vehicle_obs(self, vehicle_data:Dict[str, Dict[str, Any]]):
+        """用于获得每一辆车的信息, 主要包含:
+        1. 车辆的速度
+        2. 车辆所在的 road, 使用 one-hot
+        3. 车辆所在的 lane position
+        4. 车辆的 waiting time
+        5. 车辆的 accumulated_waiting_time
+
+        Args:
+            vehicle_data (Dict[str, Dict[str, Any]]): 仿真中车辆的信息, 下面是一个例子:
+            {
+                '-E6__0__background_1.0': {'id': '-E6__0__background_1.0', 'action_type': 'lane', 'vehicle_type': 'background_1', 'length': 7.0, 'width': 1.8, 'heading': 355.69461230491356, 'position': (293.83316888099887, -59.30507987749093), 'speed': 4.603267983696424, 'road_id': '-E6', 'lane_id': '-E6_1', 'lane_index': 1, 'lane_position': 13.943846113653855, 'edges': ('-E6', 'E2', 'E7'), 'waiting_time': 0.0, ...},
+                '-E7__0__background_2.0': {'id': '-E7__0__background_2.0', 'action_type': 'lane', 'vehicle_type': 'background_2', 'length': 7.0, 'width': 1.8, 'heading': 269.75716619082107, 'position': (658.4361538863461, 49.21090214725246), 'speed': 4.603267983696424, 'road_id': '-E7', 'lane_id': '-E7_0', 'lane_index': 0, 'lane_position': 13.943846113653855, 'edges': ('-E7', '-E2', '-E1', '-E0'), 'waiting_time': 0.0, ...}，
+                ...
+            }
+
+        """
+        processed_veh_obs = {}
+        for _veh_id, _veh_info in vehicle_data.items():
+            _lane_id = _veh_info['lane_id']
+            if not _lane_id.startswith(":"):
+                _speed = _veh_info['speed']
+                _lane_position = _veh_info['lane_position']/self.lane_infos[_lane_id]['length']
+                _waiting_time = _veh_info['waiting_time']
+                _accumulated_waiting_time = _veh_info['accumulated_waiting_time']
+                _edge_id = one_hot_encode(self.road_ids, _veh_info['road_id'])
+                processed_veh_obs[_veh_id] = [_speed, _lane_position, _waiting_time, _accumulated_waiting_time] + _edge_id
+        return processed_veh_obs
+
+    def get_edge_cells(self, vehicle_data:Dict[str, Dict[str, Any]]):
         """计算每一个 edge cell 每一个时刻的信息, 可以用于计算 global info, 或是用于可视化
 
         Args:
-            vehicle_data (_type_): _description_
+            vehicle_data (Dict[str, Dict[str, Any]]): 仿真中车辆的信息, 具体例子见上面
 
         Returns:
             _type_: _description_
@@ -100,7 +134,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         return edge_cells
 
     def get_local_tls_state(self, tls_states):
-        """获得每个路口每一个时刻的信息
+        """获得每个路口每一个时刻的信息, 获得摄像头的数据
         """
         tls_local_obs = {} # 每一个 tls 处理好的特征
 
@@ -152,7 +186,23 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         """
         _recent_k_data = self.local_obs_timeseries.get_recent_k_data(K)
         return merge_local_data(_recent_k_data)
+    
+    def process_veh_state(self, K=1):
+        """获得最后一个时刻车辆的信息
 
+        Args:
+            K (int, optional): 去 K 个时间片, 这里车辆的信息只使用最后一个时刻的信息. Defaults to 1.
+        """
+        _recent_k_data = self.vehicle_timeseries.get_recent_k_data(K)[-1][-1]
+        # Concatenate the values
+        result = [value for value in _recent_k_data.values()]
+        # If the number of lists is less than 100, pad with lists of zeros
+        if len(result) < 100:
+            result += [[0]*len(result[0]) for _ in range(100 - len(result))]
+        # If the number of lists is more than 100, take the first 100 lists
+        else:
+            result = result[:100]
+        return np.array(result)
 
     def process_reward(self, vehicle_state):
         """
@@ -170,15 +220,16 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         """reset env
         """
         state = self.env.reset()
-        self.node_infos = state['node']
+        self.node_infos = state['node'] # 地图节点的信息
         self.lane_infos = state['lane'] # 地图车道信息
+        self.road_ids = sorted(set([_lane['edge_id'] for _,_lane in self.lane_infos.items()])) # 获得所有的 edge id
 
         # 更新全局最大的 max_num_cells 的个数
         for _, lane_info in self.lane_infos.items():
             _num_cell = lane_info['length'] // self.cell_length + 1
             if _num_cell > self.max_num_cells:
                 self.max_num_cells = _num_cell
-                
+
         # Update Local Info
         tls_data = state['tls'] # 获得路口的信息
         for _tls_id, _tls_data in tls_data.items():
@@ -191,11 +242,17 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         global_obs = self.get_edge_cells(vehicle_data) # 得到每一个 cell 的信息
         self.edge_cells_timeseries.add_data_point(timestamp=0, data=global_obs) # 记录全局信息
         
+        # Vehicle Local Info
+        vehicle_obs = self.get_vehicle_obs(vehicle_data)
+        self.vehicle_timeseries.add_data_point(timestamp=0, data=vehicle_obs)
+
         # TODO, 这里需要根据不同的路网手动调整 (自动化代码写得太复杂了, 不想写了!!!)
-        # TODO, 别问 reset 状态为什么是随机的, 因为我发现随机会比全 0 好 (别问为什么, 我也不知道, 就是实验结果!!!)
+        # TODO, reset 状态是随机的, 随机会比全 0 效果好一些
         processed_local_obs = {_tls_id:np.random.randn(5,12,7) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 6 是每个 movement 的特征
         processed_global_obs = np.random.randn(len(global_obs),5,int(self.max_num_cells),3) # len(global_obs): edge 的数量, 5 是时间序列, self.max_num_cells 是 cell 数量, 3 是每个 edge 的特征
-        return (processed_local_obs, processed_global_obs)
+        processed_veh_obs = np.random.randn(100,24)
+
+        return (processed_local_obs, processed_global_obs, processed_veh_obs)
     
 
     def step(self, action: Dict[str, int]):
@@ -225,14 +282,17 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
             } # 只要有一个 traffic signal 可以做动作, 就需要进行下发
             
             # 3. 根据原始信息提取有用的
+            veh_obs = self.get_vehicle_obs(vehicle_data) # Get Vehicle Info
+            self.vehicle_timeseries.add_data_point(sim_step, veh_obs)
             local_obs = self.get_local_tls_state(tls_data) # Get Local Info
             self.local_obs_timeseries.add_data_point(sim_step, local_obs) 
             global_obs = self.get_edge_cells(vehicle_data) # Get Edge Cell
             self.edge_cells_timeseries.add_data_point(sim_step, global_obs)
 
-        # 开始处理 state, 1. local; 2. local+global;
+        # 开始处理 state, 1. local; 2. local+global; 3. local+global+vehicle
         processed_local_obs = self.process_local_state()
         processed_global_obs = self.process_global_state()
+        processed_veh_obs = self.process_veh_state()
         
         # 处理 reward
         reward = self.process_reward(vehicle_data) # 计算路网的整体等待时间
@@ -257,4 +317,4 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
                 self.results_writer.write_row(ep_info)
                 self.rewards_writer = list()
             
-        return (processed_local_obs, processed_global_obs), rewards, truncateds, dones, infos
+        return (processed_local_obs, processed_global_obs, processed_veh_obs), rewards, truncateds, dones, infos
