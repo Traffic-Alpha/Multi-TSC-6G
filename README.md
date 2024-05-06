@@ -2,7 +2,7 @@
  * @Author: WANG Maonan
  * @Date: 2024-04-09 21:28:52
  * @Description: Multi-Agent Traffic Signal Control under 6G
- * @LastEditTime: 2024-04-25 16:54:32
+ * @LastEditTime: 2024-05-06 21:38:28
 -->
 
 Multi Agents for Traffic Signal Control Based on Global and Local Info (Network as a Sensor)
@@ -17,7 +17,12 @@ torchrl_pz_wrapper.PettingZooWrapper，将环境转为为 torchrl 对应的环�
 
 
 ## 环境介绍
-
+- Vehicle State，每个车辆的特征。这里一共是 100,如果数量不够 100,就填充 0,否则取 100（其实做的更好可以按照距离每个信号灯路口的前 100 个）
+  - 车辆的速度
+  - 车辆所在的 road, 使用 one-hot
+  - 车辆所在的 lane position
+  - 车辆的 waiting time
+  - 车辆的 accumulated_waiting_time
 - Local State，每个路口的局部特征。一个路口有 12 个方向，所以每个路口特征大小是 (12, 7)
   - 动态信息: occupancy, mean_speed
   - 车道静态信息: direction_flags（三种方向, one-hot）, lane_numbers
