@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-10-30 23:01:03
 @Description: 检查同时开启多个仿真环境
-@LastEditTime: 2024-04-15 21:07:05
+@LastEditTime: 2024-05-06 21:32:30
 '''
 from loguru import logger
 
@@ -14,15 +14,21 @@ path_convert = get_abs_path(__file__)
 set_logger(path_convert('./'), file_log_level="INFO", terminal_log_level="WARNING")
 
 if __name__ == '__main__':
-    sumo_cfg = path_convert("./sumo_nets/3_ints/env/three_junctions.sumocfg")
-    net_file = path_convert("./sumo_nets/3_ints/env/three_junctions.net.xml")
-    log_path = path_convert('./log/3_ints')
+    sumo_cfg = path_convert("./sumo_nets/3_ints_4phases/env/three_junctions.sumocfg")
+    net_file = path_convert("./sumo_nets/3_ints_4phases/env/three_junctions.net.xml")
+    log_path = path_convert('./log/3_ints_4phases')
+    action_space = {
+      "J1": 4,
+      "J2": 4,
+      "J3": 4
+    }
     tsc_env = make_parallel_env(
         num_envs=6,
         sumo_cfg=sumo_cfg,
         net_file=net_file,
         num_seconds=1300,
         tls_ids=['J1', 'J2', 'J3'],
+        action_space=action_space,
         use_gui=False,
         log_file=log_path
     )

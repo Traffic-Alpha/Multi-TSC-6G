@@ -6,7 +6,7 @@
     1. https://pettingzoo.farama.org/content/environment_creation/
     2. https://pettingzoo.farama.org/tutorials/custom_environment/3-action-masking/ (添加 action mask)
 => 由于不是每一个时刻所有 TSC 都可以做动作, 这里我们就只返回可以做动作的 TSC 的信息, 也就是 agent 的数量是一直在改变的
-@LastEditTime: 2024-05-06 21:32:11
+@LastEditTime: 2024-05-07 00:32:45
 '''
 import functools
 import numpy as np
@@ -47,9 +47,9 @@ class TSCEnvironmentPZ(ParallelEnv):
                     shape=(20,5,11,3,)
                 ), # 20 个 edge, 每个 edge 包含 5s 的数据, 每个 edge 有 11 个 cell, 每个 cell 有 3 个信息
                 "vehicle": gym.spaces.Box(
-                    low=np.zeros((100, 24)),
-                    high=np.ones((100, 24)),
-                    shape=(100, 24)
+                    low=np.zeros((5, 100, 25)),
+                    high=100*np.ones((5, 100, 25)),
+                    shape=(5, 100, 25)
                 ),
             })
             for _tls_id in self.env.tls_ids
@@ -72,7 +72,7 @@ class TSCEnvironmentPZ(ParallelEnv):
             _tls_id: {
                 'local': processed_local_obs[_tls_id],
                 'global': processed_global_obs,
-                'vehicle': processed_veh_obs
+                'vehicle': processed_veh_obs[_tls_id]
             }
             for _tls_id in self.agents
         }
@@ -110,7 +110,7 @@ class TSCEnvironmentPZ(ParallelEnv):
             pz_observations[_tls_id] = {
                 'local': processed_local_obs[_tls_id],
                 'global': processed_global_obs,
-                'vehicle': processed_veh_obs
+                'vehicle': processed_veh_obs[_tls_id]
             }
             pz_rewards[_tls_id] = rewards[_tls_id]
 
