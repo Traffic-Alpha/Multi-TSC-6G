@@ -5,7 +5,7 @@
 1. 微观特征: 车辆的属性
 2. 中观特征: 路段摄像头的数据
 3. 宏观特征: 6G as a sensor
-@LastEditTime: 2024-05-07 00:36:32
+@LastEditTime: 2024-05-07 21:11:32
 '''
 import time
 import numpy as np
@@ -32,17 +32,19 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
 
         # 记录时序数据
         self.vehicle_timeseries = TimeSeriesData(N=10) # 记录车辆的数据
+        self.vehicle_masks_timeseries = TimeSeriesData(N=10)
         self.local_obs_timeseries = TimeSeriesData(N=10) # 将局部信息全部保存起来
         self.edge_cells_timeseries = TimeSeriesData(N=10) # edge cell 的结果
 
         # reset init
         self.node_infos = None # 节点的信息
         self.lane_infos = None # 地图车道的原始信息
-        self.road_ids = None # 地图所有的 edge id, 用于做 one-hot 向量, 表明车辆的位置
+        self.road_ids = None # 地图所有的 edge id, (1). 用于记录 global feature 的顺序; (2). 用于做 one-hot 向量, 表明车辆的位置
         self.tls_nodes = None # 每个信号灯的 id 和 坐标
         self.vehicle_feature_dim = 0 # 车辆特征的维度
         self.tls_movement_id = {} # 每个路口的 movement 顺序
         self.max_num_cells = -1 # 最大的 cell 个数, 确保 global info 大小一样
+        self.edge_cell_mask = [] # 记录 global cell 的时候, 哪些是 padding 的
 
         # #######
         # Writer
@@ -98,6 +100,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
             }
         """
         closest_vehicles = {intersection: [] for intersection in self.tls_ids}
+        padding_masks = {intersection: [] for intersection in self.tls_ids}
         
         # Step 2: Calculate distance of each vehicle from each intersection
         for veh_id, veh_data in vehicle_data.items():
@@ -111,17 +114,20 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
                     _accumulated_waiting_time = veh_data['accumulated_waiting_time']
                     _edge_id = one_hot_encode(self.road_ids, veh_data['road_id'])
                     closest_vehicles[intersection_id].append([_distance, _speed, _lane_position, _waiting_time, _accumulated_waiting_time] + _edge_id)
-        
+                    padding_masks[intersection_id].append(1)  # 1 indicates actual vehicle data
+
         # Step 3: Sort the vehicles by distance for each intersection and take the closest N
         for intersection_id in self.tls_nodes:
             closest_vehicles[intersection_id].sort(key=lambda x: x[0]) # 按照距离进行排序
-            closest_vehicles[intersection_id] = closest_vehicles[intersection_id][:self.max_vehicle_num]
+            closest_vehicles[intersection_id] = closest_vehicles[intersection_id][:self.max_vehicle_num] # 只取前 max_vehicle_num 个
+            padding_masks[intersection_id] = padding_masks[intersection_id][:self.max_vehicle_num]
             
-            # If there are less than N vehicles, fill the rest with zeros
-            while len(closest_vehicles[intersection_id]) < self.max_vehicle_num:
-                closest_vehicles[intersection_id].append([0]*self.vehicle_feature_dim)
-        
-        return closest_vehicles
+            # Padding if there are less than N vehicles
+            num_padding = self.max_vehicle_num - len(closest_vehicles[intersection_id])
+            closest_vehicles[intersection_id].extend([[0] * self.vehicle_feature_dim] * num_padding) # self.vehicle_feature_dim 在 reset 的时候计算
+            padding_masks[intersection_id].extend([0] * num_padding)  # 0 indicates padding
+
+        return closest_vehicles, padding_masks
 
     def get_edge_cells(self, vehicle_data:Dict[str, Dict[str, Any]]):
         """计算每一个 edge cell 每一个时刻的信息, 可以用于计算 global info, 或是用于可视化
@@ -208,7 +214,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         
         # stack
         final_result = []
-        for id_key in result.keys():
+        for id_key in self.road_ids:
             final_result.append(result[id_key])
         
         return np.stack(final_result)
@@ -220,13 +226,14 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         return merge_local_data(_recent_k_data)
     
     def process_veh_state(self, K=5):
-        """获得最后一个时刻车辆的信息
+        """获得最后 K 个时刻车辆的信息
 
         Args:
             K (int, optional): 去 K 个时间片, 这里车辆的信息只使用最后一个时刻的信息. Defaults to 5.
         """
-        _recent_k_data = self.vehicle_timeseries.get_recent_k_data(K)
-        return merge_local_data(_recent_k_data)
+        _recent_k_data_veh = self.vehicle_timeseries.get_recent_k_data(K)
+        _recent_k_data_veh_padding = self.vehicle_masks_timeseries.get_recent_k_data(K)
+        return merge_local_data(_recent_k_data_veh), merge_local_data(_recent_k_data_veh_padding)
 
     def process_reward(self, vehicle_state):
         """
@@ -253,11 +260,20 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         self.tls_nodes = {_node_id:self.node_infos[_node_id]['node_coord'] for _node_id in self.tls_ids} # 找到所有信号灯对应的坐标
         self.vehicle_feature_dim = 5 + len(self.road_ids) # 车辆的特征的维度
 
-        # 更新全局最大的 max_num_cells 的个数
+        # 更新全局最大的 max_num_cells 的个数, 同时记录每一个 edge 的 cell 个数
+        _edge_cell_num = {}
+        self.edge_cell_mask = []
         for _, lane_info in self.lane_infos.items():
+            _edge_id = lane_info['edge_id']
             _num_cell = lane_info['length'] // self.cell_length + 1
+            _edge_cell_num[_edge_id] = _num_cell # 更新 edge_id 对应的 cell 数量
             if _num_cell > self.max_num_cells:
                 self.max_num_cells = _num_cell
+        # 更新 global mask
+        for _road_id in self.road_ids:
+            _num_cell = _edge_cell_num[_road_id]
+            _road_mask = [1]*int(_num_cell) + [0]*int(self.max_num_cells-_num_cell)
+            self.edge_cell_mask.append(_road_mask)
 
         # Update Local Info
         tls_data = state['tls'] # 获得路口的信息
@@ -272,16 +288,18 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         self.edge_cells_timeseries.add_data_point(timestamp=0, data=global_obs) # 记录全局信息
         
         # Vehicle Local Info
-        vehicle_obs = self.get_vehicle_obs(vehicle_data)
+        vehicle_obs, padding_masks = self.get_vehicle_obs(vehicle_data)
         self.vehicle_timeseries.add_data_point(timestamp=0, data=vehicle_obs)
+        self.vehicle_masks_timeseries.add_data_point(timestamp=0, data=padding_masks)
 
-        # TODO, 这里需要根据不同的路网手动调整 (自动化代码写得太复杂了, 不想写了!!!)
+        # TODO, 这里需要根据不同的路网手动调整 (这里可以使用参数传入, 参数在配置文件里面, 每一个环境的参数应该是固定的)
         # TODO, reset 状态是随机的, 随机会比全 0 效果好一些
         processed_local_obs = {_tls_id:np.random.randn(5,12,7) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 6 是每个 movement 的特征
         processed_global_obs = np.random.randn(len(global_obs),5,int(self.max_num_cells),3) # len(global_obs): edge 的数量, 5 是时间序列, self.max_num_cells 是 cell 数量, 3 是每个 edge 的特征
         processed_veh_obs = {_tls_id:np.random.randn(5,100,25) for _tls_id in self.tls_ids}
+        processed_veh_mask = {_tls_id:np.zeros((5,100)) for _tls_id in self.tls_ids}
 
-        return (processed_local_obs, processed_global_obs, processed_veh_obs)
+        return (processed_local_obs, processed_global_obs, np.array(self.edge_cell_mask), processed_veh_obs, processed_veh_mask)
     
 
     def step(self, action: Dict[str, int]):
@@ -313,8 +331,9 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
             } # 只要有一个 traffic signal 可以做动作, 就需要进行下发
             
             # 3. 根据原始信息提取 (1) veh obs. (2) local obs. (3) global obs
-            veh_obs = self.get_vehicle_obs(vehicle_data) # Get Vehicle Info
+            veh_obs, padding_masks = self.get_vehicle_obs(vehicle_data) # Get Vehicle Info
             self.vehicle_timeseries.add_data_point(sim_step, veh_obs)
+            self.vehicle_masks_timeseries.add_data_point(sim_step, data=padding_masks)
             local_obs = self.get_local_tls_state(tls_data) # Get Local Info
             self.local_obs_timeseries.add_data_point(sim_step, local_obs) 
             global_obs = self.get_edge_cells(vehicle_data) # Get Edge Cell
@@ -323,7 +342,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         # 开始处理 state, 1. local; 2. local+global; 3. local+global+vehicle
         processed_local_obs = self.process_local_state()
         processed_global_obs = self.process_global_state()
-        processed_veh_obs = self.process_veh_state()
+        processed_veh_obs, processed_veh_mask = self.process_veh_state()
         
         # 处理 reward
         reward = self.process_reward(vehicle_data) # 计算路网的整体等待时间
@@ -348,4 +367,4 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
                 self.results_writer.write_row(ep_info)
                 self.rewards_writer = list()
             
-        return (processed_local_obs, processed_global_obs, processed_veh_obs), rewards, truncateds, dones, infos
+        return (processed_local_obs, processed_global_obs, np.array(self.edge_cell_mask), processed_veh_obs, processed_veh_mask), rewards, truncateds, dones, infos
