@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
 @Description: 使用 MAPPO 算法进行训练
-@LastEditTime: 2024-04-25 20:58:53
+@LastEditTime: 2024-05-06 21:35:11
 '''
 import os
 import json
@@ -214,5 +214,5 @@ def train(exp_config_path:str):  # noqa: F821
 
 
 if __name__ == "__main__":
-    exp_name = "2_allcnn__3ints"
+    exp_name = "1_occmlp__3ints"
     train(exp_config_path=path_convert(f'./configs/exp_configs/{exp_name}.json'))
