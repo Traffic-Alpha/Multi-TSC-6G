@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-25 16:27:48
 @Description: Actor Network
-@LastEditTime: 2024-04-25 17:16:09
+@LastEditTime: 2024-05-06 21:36:14
 '''
 from torch import nn
 import torch.nn.functional as F
@@ -15,7 +15,7 @@ class ActorNetwork(nn.Module):
         self.fc3 = nn.Linear(in_features=64, out_features=action_size)
 
     def forward(self, x):
-        x = x['local'] # 获得局部信息
+        x = x['local'] # 获得局部信息, x['local'], x['vehicle']
         env_batch_nagents = list(x.shape[:-3]) # 包含 n_envs, batchsize 和 n_agents
         timeseries, movement, feature_num = x.shape[-3:]
 

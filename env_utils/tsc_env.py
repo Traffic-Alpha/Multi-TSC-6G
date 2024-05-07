@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-10-29 23:26:57
 @Description: 6G 环境下多路口信号灯控制环境
-@LastEditTime: 2024-04-14 16:50:39
+@LastEditTime: 2024-05-07 00:45:41
 '''
 import gymnasium as gym
 from typing import List, Dict
@@ -15,7 +15,8 @@ class TSCEnvironment(gym.Env):
             num_seconds:int, 
             tls_ids:List[str], 
             tls_action_type:str, 
-            use_gui:bool=False
+            use_gui:bool=False,
+            **output_files
         ) -> None:
         super().__init__()
 
@@ -33,6 +34,7 @@ class TSCEnvironment(gym.Env):
             tls_action_type=tls_action_type,
             use_gui=use_gui,
             is_libsumo=(not use_gui), # 如果不开界面, 就是用 libsumo
+            **output_files
         )
 
     def reset(self):

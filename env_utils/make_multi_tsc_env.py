@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 03:58:19
 @Description: 创建多智能体的环境
-@LastEditTime: 2024-04-25 17:20:24
+@LastEditTime: 2024-05-07 00:48:14
 '''
 from typing import List, Dict
 from env_utils.tsc_env import TSCEnvironment
@@ -23,15 +23,17 @@ def make_multi_envs(
         sumo_cfg:str, net_file:str,
         num_seconds:int, use_gui:bool,
         action_space:Dict[str, int],
-        log_file:str, device:str='cpu'
+        log_file:str, device:str='cpu',
+        **output_files
     ):
     tsc_env = TSCEnvironment(
+        **output_files,
         sumo_cfg=sumo_cfg,
         net_file=net_file,
         num_seconds=num_seconds,
         tls_ids=tls_ids,
         tls_action_type='choose_next_phase_syn',
-        use_gui=use_gui
+        use_gui=use_gui,
     )
     tsc_env = GlobalLocalInfoWrapper(tsc_env, filepath=log_file)
     tsc_env = TSCEnvironmentPZ(tsc_env, action_space)

@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 23:41:58
 @Description: 加载 MAPPO 模型进行测试
-@LastEditTime: 2024-04-25 17:31:59
+@LastEditTime: 2024-05-07 15:31:03
 '''
 import os
 import json
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # 定义实验名称
-    exp_config = "1_occmlp__3ints"
+    exp_config = "2_allcnn__3ints" # 1_occmlp__3ints, 2_allcnn__3ints
     exp_config_path=path_convert(f'./configs/exp_configs/{exp_config}.json')
 
     # 读取配置文件
@@ -56,13 +56,16 @@ if __name__ == '__main__':
         num_seconds=num_seconds,
         use_gui=False,
         log_file=log_path,
-        device=device
+        device=device,
+        trip_info=path_convert('./trip_info.xml'),
+        statistic_output=path_convert('./statistic_output.xml'),
+        summary=path_convert('./summary.xml')
     )
 
     # 2. Load Model Dict
     action_spec = tsc_env.action_spec
     policy_gen = policy_module(model_name, action_spec, device)
-    policy_gen.load_model(os.path.join(model_path, "0_actor.pkl"))
+    policy_gen.load_model(os.path.join(model_path, "95_actor.pkl"))
     policy = policy_gen.make_policy_module()
 
     # 3. Simulation with environment using the policy, ExplorationType.MODE, ExplorationType.RANDOM

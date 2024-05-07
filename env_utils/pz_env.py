@@ -6,7 +6,7 @@
     1. https://pettingzoo.farama.org/content/environment_creation/
     2. https://pettingzoo.farama.org/tutorials/custom_environment/3-action-masking/ (添加 action mask)
 => 由于不是每一个时刻所有 TSC 都可以做动作, 这里我们就只返回可以做动作的 TSC 的信息, 也就是 agent 的数量是一直在改变的
-@LastEditTime: 2024-04-25 17:17:54
+@LastEditTime: 2024-05-07 00:32:45
 '''
 import functools
 import numpy as np
@@ -31,7 +31,7 @@ class TSCEnvironmentPZ(ParallelEnv):
 
         # spaces
         self.action_spaces = {
-            _tls_id:gym.spaces.Discrete(action_space[_tls_id]) # 每一个信号灯是两个相位
+            _tls_id:gym.spaces.Discrete(action_space[_tls_id]) # 每一个信号灯的相位个数
             for _tls_id in self.env.tls_ids
         }
         self.observation_spaces = {
@@ -46,6 +46,11 @@ class TSCEnvironmentPZ(ParallelEnv):
                     high=np.ones((20,5,11,3)),
                     shape=(20,5,11,3,)
                 ), # 20 个 edge, 每个 edge 包含 5s 的数据, 每个 edge 有 11 个 cell, 每个 cell 有 3 个信息
+                "vehicle": gym.spaces.Box(
+                    low=np.zeros((5, 100, 25)),
+                    high=100*np.ones((5, 100, 25)),
+                    shape=(5, 100, 25)
+                ),
             })
             for _tls_id in self.env.tls_ids
         }
@@ -53,7 +58,7 @@ class TSCEnvironmentPZ(ParallelEnv):
     def reset(self, seed=None, options=None):
         """Reset the environment
         """
-        processed_local_obs, processed_global_obs = self.env.reset()
+        processed_local_obs, processed_global_obs, processed_veh_obs = self.env.reset()
         agent_mask = {
             _tls_id:{
                 'can_perform_action': True, 
@@ -67,7 +72,8 @@ class TSCEnvironmentPZ(ParallelEnv):
             _tls_id: {
                 'local': processed_local_obs[_tls_id],
                 'global': processed_global_obs,
-                }
+                'vehicle': processed_veh_obs[_tls_id]
+            }
             for _tls_id in self.agents
         }
 
@@ -93,7 +99,7 @@ class TSCEnvironmentPZ(ParallelEnv):
     def step(self, actions:Dict[str, int]):
         """Step the environment.
         """
-        (processed_local_obs, processed_global_obs), rewards, terminations, truncations, infos = self.env.step(actions)
+        (processed_local_obs, processed_global_obs, processed_veh_obs), rewards, terminations, truncations, infos = self.env.step(actions)
 
         # 将不能做动作的 agent 设置为 0
         pz_observations = {}
@@ -104,6 +110,7 @@ class TSCEnvironmentPZ(ParallelEnv):
             pz_observations[_tls_id] = {
                 'local': processed_local_obs[_tls_id],
                 'global': processed_global_obs,
+                'vehicle': processed_veh_obs[_tls_id]
             }
             pz_rewards[_tls_id] = rewards[_tls_id]
 

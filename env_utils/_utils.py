@@ -2,8 +2,9 @@
 @Author: WANG Maonan
 @Date: 2024-04-10 15:42:31
 @Description: 一些环境创建使用到的工具
-@LastEditTime: 2024-04-15 02:16:36
+@LastEditTime: 2024-05-07 00:08:30
 '''
+import math
 import numpy as np
 from collections import deque
 from typing import List, Tuple, Dict
@@ -113,3 +114,22 @@ def direction_to_flags(direction):
         1 if direction == 'l' else 0,
         1 if direction == 'r' else 0
     ]
+
+def one_hot_encode(input_list, target):
+    # Initialize a list of zeros of length equal to the input list
+    one_hot_vector = [0]*len(input_list)
+    
+    # If the target is in the input list, set the corresponding index to 1
+    if target in input_list:
+        one_hot_vector[input_list.index(target)] = 1
+    
+    return one_hot_vector
+
+def calculate_distance(point1:Tuple[float], point2:Tuple[float]):
+    """计算两点之间的距离
+
+    Args:
+        point1 (Tuple[float]): 第一个点的坐标
+        point2 (Tuple[float]): 第二个点的坐标
+    """
+    return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
