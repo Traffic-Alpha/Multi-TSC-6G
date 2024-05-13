@@ -51,6 +51,9 @@ class policy_module():
     def save_model(self, model_path):
         torch.save(self.actor_net.state_dict(), model_path)
     
-    def load_model(self, model_path):
-        model_dicts = torch.load(model_path)
+    def load_model(self, model_path, device):
+        if device is 'cpu':
+            model_dicts = torch.load(model_path, map_location=torch.device('cpu'))
+        else:
+            model_dicts = torch.load(model_path)
         self.actor_net.load_state_dict(model_dicts)
