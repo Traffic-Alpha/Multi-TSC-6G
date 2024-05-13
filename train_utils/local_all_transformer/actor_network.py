@@ -17,14 +17,9 @@ from einops import rearrange
 class ActorNetwork(nn.Module):
     def __init__(self, action_size):
         super(ActorNetwork, self).__init__()
-        # self.fc1 = nn.Linear(7, 32)
-        # self.movement_transformer = TransformerModule(32, 8, 4, 32)
-        # self.pooling = nn.AdaptiveAvgPool1d(32)
-        # self.time_transformer = TransformerModule(32, 8, 4, 32)
-        # self.fc2 = nn.Linear(32, action_size)
-        self.fc1 = nn.Linear(12, 64)
+        self.fc1 = nn.Linear(84, 64)
         self.transformer1 = Transformer(dim=64, depth=2, heads=8, dim_head=128, mlp_dim=128, dropout=0.1)
-        self.fc2 = nn.Linear(64, action_size)
+        self.fc3 = nn.Linear(64, action_size)
         self.pooling = nn.AdaptiveAvgPool2d((1, 64))
 
     def forward(self, x):
@@ -32,19 +27,18 @@ class ActorNetwork(nn.Module):
         if x.ndim == 5:
             ea = list(x.shape[:2])
             x = rearrange(x, 'e a ... -> (e a) ...')
-
         elif x.ndim == 4:
-            ea = list([x.shape[0]])
+            ea = list(x.shape[0])
         else:
             raise 'unexpected ndim'
 
-        time, movement = x.shape[-3:-1]
-        x = x[..., 0]  # 只取占有率
+        time, movement, feature = x.shape[-3:]
 
+        x = rearrange(x, pattern='... m f -> ... (m f)')
         x = self.fc1(x)
         x = self.transformer1(x)
         x = self.pooling(x)
         x = rearrange(x, 'ea 1 d -> ea d')
-        x = self.fc2(x)
+        x = self.fc3(x)
 
         return x.view(*ea, -1)
