@@ -143,8 +143,8 @@ class CrossTransformer(nn.Module):
 
 if __name__ == '__main__':
     input1 = torch.randn(4, 16, 32)
-    # transformer = Transformer(dim=32, depth=4, heads=8, dim_head=64, mlp_dim=64, dropout=0.1)
-    # output1 = transformer(input1)
+    transformer = Transformer(dim=32, depth=4, heads=8, dim_head=64, mlp_dim=64, dropout=0.1)
+    output1 = transformer(input1)
 
     input2 = torch.randn(12, 16, 32)
     ca = CrossAttention(dim=32, heads=8, dim_head=64, dropout=0.1)
