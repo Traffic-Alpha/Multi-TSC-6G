@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-09 22:32:16
 @Description: 检查 Global Local Env, 环境的特征是否提取正确
-@LastEditTime: 2024-05-07 00:37:23
+@LastEditTime: 2024-05-07 20:51:10
 '''
 import numpy as np
 from typing import List
@@ -55,6 +55,6 @@ if __name__ == '__main__':
             "J3": np.random.randint(2),
         }
         states, rewards, truncateds, dones, infos = env.step(action)
-        (processed_local_obs, processed_global_obs, processed_veh_obs) = states
+        (processed_local_obs, processed_global_obs, edge_cell_mask, processed_veh_obs, processed_veh_mask) = states
         done = all(dones.values()) or (len(dones) == 0)
     env.close()
