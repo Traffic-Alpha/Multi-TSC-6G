@@ -27,6 +27,7 @@ class policy_module():
         ActorNetwork = load_actor_model(model_name)
         self.action_spec = action_spec
         self.actor_net = ActorNetwork(action_size=action_spec.shape[-1]).to(device)
+        self.device = device
         logger.info(f'RL: Actor Model:\n {self.actor_net}')
 
     def make_policy_module(self):
@@ -52,5 +53,5 @@ class policy_module():
         torch.save(self.actor_net.state_dict(), model_path)
     
     def load_model(self, model_path):
-        model_dicts = torch.load(model_path)
+        model_dicts = torch.load(model_path, map_location=self.device)
         self.actor_net.load_state_dict(model_dicts)
