@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 03:58:19
 @Description: 创建多智能体的环境
-@LastEditTime: 2024-05-07 00:48:14
+LastEditTime: 2024-09-17 16:27:00
 '''
 from typing import List, Dict
 from env_utils.tsc_env import TSCEnvironment
@@ -22,7 +22,9 @@ def make_multi_envs(
         tls_ids:List[str], 
         sumo_cfg:str, net_file:str,
         num_seconds:int, use_gui:bool,
+        road_ids:List[str],
         action_space:Dict[str, int],
+        cell_length:int,
         log_file:str, device:str='cpu',
         **output_files
     ):
@@ -35,7 +37,7 @@ def make_multi_envs(
         tls_action_type='choose_next_phase_syn',
         use_gui=use_gui,
     )
-    tsc_env = GlobalLocalInfoWrapper(tsc_env, filepath=log_file)
+    tsc_env = GlobalLocalInfoWrapper(tsc_env, filepath=log_file, road_ids=road_ids, cell_length=cell_length)
     tsc_env = TSCEnvironmentPZ(tsc_env, action_space)
     tsc_env = PettingZooWrapper(
         tsc_env, 
@@ -56,7 +58,9 @@ def make_parallel_env(
         tls_ids:List[str], 
         sumo_cfg:str, net_file:str,
         num_seconds:int, use_gui:bool,
+        road_ids:List[str],
         action_space:Dict[str, int],
+        cell_length:int,
         log_file:str,
         device:str='cpu'
     ):
@@ -69,6 +73,8 @@ def make_parallel_env(
             "num_seconds": num_seconds,
             "net_file": net_file,
             "action_space": action_space,
+            "road_ids": road_ids,
+            "cell_length": cell_length,
             "use_gui" : use_gui,
             "log_file": log_file+f'/{i}',
             "device": device,

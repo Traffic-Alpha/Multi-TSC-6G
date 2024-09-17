@@ -2,7 +2,7 @@
  * @Author: WANG Maonan
  * @Date: 2024-04-09 21:28:52
  * @Description: Multi-Agent Traffic Signal Control under 6G
- * @LastEditTime: 2024-05-07 00:27:13
+ * @LastEditTime: 2024-09-16 16:56:41
 -->
 
 Multi Agents for Traffic Signal Control Based on Global and Local Info (Network as a Sensor)
@@ -46,3 +46,9 @@ torchrl_pz_wrapper.PettingZooWrapper，将环境转为为 torchrl 对应的环�
   - 实验名称
   - 环境名称，读取环境的配置文件
   - 模型的名称
+  
+## 开始训练
+
+- global 信息: 每一个路网 global info 信息的维度是会变化的，我们需要在配置文件中指定这个全局分割的大小等
+- vehicle 信息: vehicle 最后一个所在的 lane id, 这里会因为 network 不一样导致维度不一样
+- 上面的修改还需要修改 reset 部分返回的大小

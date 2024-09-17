@@ -5,12 +5,12 @@
 1. 微观特征: 车辆的属性
 2. 中观特征: 路段摄像头的数据
 3. 宏观特征: 6G as a sensor
-@LastEditTime: 2024-05-07 21:11:32
+LastEditTime: 2024-09-17 16:45:13
 '''
 import time
 import numpy as np
 import gymnasium as gym
-from typing import Dict, Any
+from typing import Dict, Any, List
 from stable_baselines3.common.monitor import ResultsWriter
 
 from ._utils import (
@@ -23,11 +23,11 @@ from ._utils import (
 
 
 class GlobalLocalInfoWrapper(gym.Wrapper):
-    def __init__(self, env: gym.Env, filepath:str, cell_length:float=20):
+    def __init__(self, env: gym.Env, filepath:str, road_ids:List[str], cell_length:float=20):
         super().__init__(env)
         self.tls_ids = self.env.tls_ids # 多路口的 ids
         self.cell_length = cell_length # 每个 cell 的长度
-        self.filepath = filepath
+        self.filepath = filepath # 日志文件路径
         self.max_vehicle_num = 100 # 记录每个路口的 max_vehicle_num 数量的车
 
         # 记录时序数据
@@ -39,7 +39,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         # reset init
         self.node_infos = None # 节点的信息
         self.lane_infos = None # 地图车道的原始信息
-        self.road_ids = None # 地图所有的 edge id, (1). 用于记录 global feature 的顺序; (2). 用于做 one-hot 向量, 表明车辆的位置
+        self.road_ids = road_ids # 地图所有的 edge id, (1). 用于记录 global feature 的顺序; (2). 用于做 one-hot 向量, 表明车辆的位置
         self.tls_nodes = None # 每个信号灯的 id 和 坐标
         self.vehicle_feature_dim = 0 # 车辆特征的维度
         self.tls_movement_id = {} # 每个路口的 movement 顺序
@@ -52,8 +52,8 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         if self.filepath is not None:
             self.t_start = time.time()
             self.results_writer = ResultsWriter(
-                    filepath,
-                    header={"t_start": self.t_start},
+                filepath,
+                header={"t_start": self.t_start},
             )
             self.rewards_writer = list()
 
@@ -61,9 +61,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         """根据道路信息初始化 edge cell 的信息, 这里每个时刻都需要进行初始化
         """
         edge_cells = {}
-        for lane_id, lane_info in self.lane_infos.items():
-            edge_id = lane_info['edge_id']
-            # num_cells = int(lane_info['length'] // self.cell_length)+1
+        for edge_id in self.road_ids:
             assert  self.max_num_cells != -1, '检查代码关于 max_num_cells 的部分, 现在是 -1.'
             num_cells = int(self.max_num_cells) # 统一大小, 这样不同 lane 的长度是一样的
             if edge_id not in edge_cells:
@@ -256,7 +254,8 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         state = self.env.reset()
         self.node_infos = state['node'] # 地图节点的信息
         self.lane_infos = state['lane'] # 地图车道信息
-        self.road_ids = sorted(set([_lane['edge_id'] for _,_lane in self.lane_infos.items()])) # 获得所有的 edge id, 用于对车辆所在位置进行 one-hot
+        if (self.road_ids is None) or (len(self.road_ids) == 0): # road id 可以自己输入, 或是从路网中解析
+            self.road_ids = sorted(set([_lane['edge_id'] for _,_lane in self.lane_infos.items()])) # 获得所有的 edge id, 用于对车辆所在位置进行 one-hot
         self.tls_nodes = {_node_id:self.node_infos[_node_id]['node_coord'] for _node_id in self.tls_ids} # 找到所有信号灯对应的坐标
         self.vehicle_feature_dim = 5 + len(self.road_ids) # 车辆的特征的维度
 
@@ -269,6 +268,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
             _edge_cell_num[_edge_id] = _num_cell # 更新 edge_id 对应的 cell 数量
             if _num_cell > self.max_num_cells:
                 self.max_num_cells = _num_cell
+
         # 更新 global mask
         for _road_id in self.road_ids:
             _num_cell = _edge_cell_num[_road_id]
@@ -293,10 +293,9 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
         self.vehicle_masks_timeseries.add_data_point(timestamp=0, data=padding_masks)
 
         # TODO, 这里需要根据不同的路网手动调整 (这里可以使用参数传入, 参数在配置文件里面, 每一个环境的参数应该是固定的)
-        # TODO, reset 状态是随机的, 随机会比全 0 效果好一些
-        processed_local_obs = {_tls_id:np.random.randn(5,12,7) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 6 是每个 movement 的特征
+        processed_local_obs = {_tls_id:np.random.randn(5,12,7) for _tls_id in self.tls_ids} # 5 是时间序列, 12 movement 数量, 7 是每个 movement 的特征
         processed_global_obs = np.random.randn(len(global_obs),5,int(self.max_num_cells),3) # len(global_obs): edge 的数量, 5 是时间序列, self.max_num_cells 是 cell 数量, 3 是每个 edge 的特征
-        processed_veh_obs = {_tls_id:np.random.randn(5,100,25) for _tls_id in self.tls_ids}
+        processed_veh_obs = {_tls_id:np.random.randn(5,100,299) for _tls_id in self.tls_ids}
         processed_veh_mask = {_tls_id:np.zeros((5,100)) for _tls_id in self.tls_ids}
 
         return (processed_local_obs, processed_global_obs, np.array(self.edge_cell_mask), processed_veh_obs, processed_veh_mask)

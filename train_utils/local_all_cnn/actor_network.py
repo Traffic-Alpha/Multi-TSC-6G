@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-25 16:39:36
 @Description: Actor Network 
-@LastEditTime: 2024-04-25 20:59:53
+LastEditTime: 2024-09-17 16:15:26
 '''
 from torch import nn
 import torch.nn.functional as F
@@ -21,7 +21,7 @@ class ActorNetwork(nn.Module):
 
         x = x.view(-1, timeseries, movement, feature_num) # (batch_size*agent_num, 5, 12, 6)
 
-        x = self.conv(x) # (batch_size*agent_num, 5, 12, 7) --> (batch_size*agent_num, 32, 12, 1)
+        x = self.conv(x) # (batch_size*agent_num, 5, 12, 7) --> (batch_size*agent_num, 32, 12, 1), 分析 x[2,0].round(decimals=2)
         x = F.tanh(x)
         x = x.squeeze(-1) # (batch_size*agent_num, 32, 12)
         x = self.pool(x) # (batch_size*agent_num, 32, 1)

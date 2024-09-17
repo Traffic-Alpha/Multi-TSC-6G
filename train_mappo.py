@@ -1,8 +1,8 @@
 '''
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
-@Description: 使用 MAPPO 算法进行训练
-@LastEditTime: 2024-05-06 21:35:11
+@Description: 使用 MAPPO 算法进行训练, nohup python train_mappo.py > train_log.out 2>&1 &
+LastEditTime: 2024-09-17 17:56:27
 '''
 import os
 import json
@@ -46,18 +46,19 @@ def train(exp_config_path:str):  # noqa: F821
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     
     # 超参数设置
-    num_envs = 16 # 同时开启的环境个数
+    num_envs = 1 # 同时开启的环境个数
     n_iters = 100 # 控制训练的时间长度
 
     exp_name = exp_config["experiment_name"]
     model_name = exp_config["model_name"]
 
     action_space = env_config["action_space"]
+    road_ids = env_config['road_ids']
     tls_ids = env_config["junction_ids"]
     num_seconds = env_config["simulation_time"] # 仿真时间
     frames_per_batch = num_envs*env_config["simulation_steps"]*2 # 差不多是 2 轮游戏
     memory_size = frames_per_batch
-    total_frames = frames_per_batch*n_iters
+    collector_total_frames = frames_per_batch*n_iters
     minibatch_size = num_envs*(env_config["simulation_steps"]//2) # multi-agent 这个参数稍微大一些, 至少包含一半的数据
     num_epochs = 10 # optimization steps per batch of data collected, 10-15 即可
 
@@ -78,6 +79,8 @@ def train(exp_config_path:str):  # noqa: F821
         num_seconds=num_seconds,
         tls_ids=tls_ids,
         action_space=action_space,
+        road_ids=road_ids,
+        cell_length=100,
         use_gui=False,
         log_file=log_path,
         device=device
@@ -100,7 +103,7 @@ def train(exp_config_path:str):  # noqa: F821
         device=device,
         storing_device=device,
         frames_per_batch=frames_per_batch,
-        total_frames=total_frames,
+        total_frames=collector_total_frames,
     )
 
     # Reply Buffer
@@ -138,9 +141,9 @@ def train(exp_config_path:str):  # noqa: F821
     )
 
     # Start Training
-    pbar = tqdm.tqdm(total=total_frames)
+    pbar = tqdm.tqdm(total=collector_total_frames)
     total_time = 0
-    total_frames = 0
+    total_frames = 0 # 当前训练的 frames
     sampling_start = time.time()
 
     for i, tensordict_data in enumerate(collector):
@@ -214,5 +217,7 @@ def train(exp_config_path:str):  # noqa: F821
 
 
 if __name__ == "__main__":
-    exp_name = "1_occmlp__3ints"
-    train(exp_config_path=path_convert(f'./configs/exp_configs/{exp_name}.json'))
+    scenario_names = ["3_ints", "SouthKorea_Songdo"] # 场景名称
+    model_names = ["1_occmlp", "2_allcnn"] # 模型的名称
+    for scenario_name, model_name in zip(scenario_names, model_names):
+        train(exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json'))

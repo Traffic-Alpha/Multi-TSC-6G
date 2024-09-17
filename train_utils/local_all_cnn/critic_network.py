@@ -1,8 +1,8 @@
 '''
 @Author: WANG Maonan
 @Date: 2024-04-25 16:27:56
-@Description: Critic Network
-@LastEditTime: 2024-04-25 16:44:14
+@Description: Critic Network (根据全局信息做出判断)
+LastEditTime: 2024-09-17 16:32:38
 '''
 from torch import nn
 import torch.nn.functional as F
@@ -19,7 +19,7 @@ class CriticNetwork(nn.Module):
         # x_global = local_global_x['global']
         env_batch_nagents = list(x_local.shape[:-3]) # 包含 n_envs, batchsize 和 n_agents
         timeseries, movement, feature_num = x_local.shape[-3:]
-        x_local = x_local.view(-1, timeseries, movement, feature_num) # (batch_size, agent_num, 5, 12, 7)
+        x_local = x_local.view(-1, timeseries, movement, feature_num) # (batch_size, agent_num, 5, movement, movement_feature)
 
         x_local = self.conv(x_local) # (batch_size*agent_num, 5, 12, 7) --> (batch_size*agent_num, 32, 12, 1)
         x_local = F.relu(x_local)
