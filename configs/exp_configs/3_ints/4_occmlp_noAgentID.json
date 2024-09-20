@@ -1,0 +1,5 @@
+{
+    "experiment_name": "Exp4-3INTs",
+    "environment_name": "3_ints_4phases.json",
+    "model_name": "local_occ_mlp_noAgentID"
+}
