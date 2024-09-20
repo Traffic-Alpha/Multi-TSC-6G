@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 23:41:58
 @Description: 加载 MAPPO 模型进行测试
-LastEditTime: 2024-09-17 16:27:37
+LastEditTime: 2024-09-20 13:00:04
 '''
 import os
 import json
@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     # 定义实验名称
     scenario_name = "SouthKorea_Songdo" # 场景名称
-    model_name = "2_allcnn" # 模型的名称
+    model_name = "1_occmlp" # 模型的名称
     exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json')
 
     # 读取配置文件
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         action_space=action_space,
         num_seconds=num_seconds,
         road_ids=road_ids,
-        use_gui=False,
+        use_gui=True,
         cell_length=100,
         log_file=log_path,
         device=device,

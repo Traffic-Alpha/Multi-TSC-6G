@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
 @Description: 使用 MAPPO 算法进行训练, nohup python train_mappo.py > train_log.out 2>&1 &
-LastEditTime: 2024-09-17 17:56:27
+LastEditTime: 2024-09-20 12:59:32
 '''
 import os
 import json
@@ -218,6 +218,11 @@ def train(exp_config_path:str):  # noqa: F821
 
 if __name__ == "__main__":
     scenario_names = ["3_ints", "SouthKorea_Songdo"] # 场景名称
-    model_names = ["1_occmlp", "2_allcnn"] # 模型的名称
-    for scenario_name, model_name in zip(scenario_names, model_names):
-        train(exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json'))
+    model_names = [
+        "1_occmlp", "2_allcnn", "3_occmlp_noLaynorm", 
+        "4_occmlp_noAgentID", "5_occmlp_raw", "6_occmlp_rawLaynorm", 
+        "7_occmlp_noLaynorm_noAgentID", "8_occmlp_rawAgentID"
+    ] # 模型的名称
+    for scenario_name in scenario_names:
+        for model_name in model_names:
+            train(exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json'))
