@@ -1,0 +1,5 @@
+{
+    "experiment_name": "Exp5-SouthKorea",
+    "environment_name": "southKorea_Songdo.json",
+    "model_name": "local_occ_mlp_raw"
+}
