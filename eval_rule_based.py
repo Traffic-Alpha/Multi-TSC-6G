@@ -1,7 +1,7 @@
 '''
 Author: Maonan Wang
 Date: 2024-09-23 13:42:56
-LastEditTime: 2024-09-23 15:48:54
+LastEditTime: 2024-10-02 17:13:56
 LastEditors: Maonan Wang
 Description: 测试 rule-based policy 的效果
 FilePath: /Multi-TSC-6G/eval_rule_based.py
@@ -21,6 +21,7 @@ from rule_based_policy import (
 ft_policy_1 = partial(ft_policy, phase_duration=1)
 ft_policy_2 = partial(ft_policy, phase_duration=2)
 ft_policy_3 = partial(ft_policy, phase_duration=3)
+ft_policy_4 = partial(ft_policy, phase_duration=4)
 
 from tshub.utils.get_abs_path import get_abs_path
 from tshub.utils.init_log import set_logger
@@ -39,7 +40,8 @@ def make_multi_envs(
         sumo_cfg:str, net_file:str,
         num_seconds:int, use_gui:bool,
         road_ids: List[str],
-        log_file:str, cell_length:int=20
+        log_file:str, cell_length:int=20,
+        **output_files
     ):
     tsc_env = TSCEnvironment(
         sumo_cfg=sumo_cfg,
@@ -48,9 +50,7 @@ def make_multi_envs(
         tls_ids=tls_ids,
         tls_action_type='choose_next_phase_syn',
         use_gui=use_gui,
-        trip_info=path_convert('./trip_info.xml'),
-        statistic_output=path_convert('./statistic_output.xml'),
-        summary=path_convert('./summary.xml')
+        **output_files
     )
     tsc_env = GlobalLocalInfoWrapper(tsc_env, filepath=log_file, road_ids=road_ids, cell_length=cell_length)
 
@@ -58,7 +58,7 @@ def make_multi_envs(
 
 if __name__ == '__main__':
     # 指定测试的策略
-    eval_policy = webster_policy
+    eval_policy = actuated_policy
     
     # 读取实验配置文件
     env_config = load_environment_config("southKorea_Songdo.json")
@@ -76,7 +76,10 @@ if __name__ == '__main__':
         road_ids=road_ids,
         log_file=log_path,
         use_gui=True,
-        cell_length=50
+        cell_length=50,
+        trip_info=path_convert('./trip_info.xml'),
+        statistic_output=path_convert('./statistic_output.xml'),
+        summary=path_convert('./summary.xml')
     )
 
     done = False
