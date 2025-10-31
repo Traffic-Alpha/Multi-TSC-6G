@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 03:58:19
 @Description: 创建多智能体的环境
-LastEditTime: 2024-09-17 16:27:00
+LastEditTime: 2025-10-30 15:55:53
 '''
 from typing import List, Dict
 from env_utils.tsc_env import TSCEnvironment
@@ -13,9 +13,10 @@ from torchrl.envs import (
     ParallelEnv, 
     TransformedEnv,
     RewardSum,
-    VecNorm
+    VecNormV2,
+    PettingZooWrapper
 )
-from env_utils.torchrl_pz_wrapper import PettingZooWrapper # 对原始的 torchrl 的 wrapper 进行了修改
+# from env_utils.torchrl_pz_wrapper import PettingZooWrapper # 对原始的 torchrl 的 wrapper 进行了修改
 
 
 def make_multi_envs(
@@ -49,7 +50,7 @@ def make_multi_envs(
     )
     tsc_env = TransformedEnv(tsc_env)
     tsc_env.append_transform(RewardSum(in_keys=[tsc_env.reward_key]))
-    tsc_env.append_transform(VecNorm(in_keys=[tsc_env.reward_key]))
+    tsc_env.append_transform(VecNormV2(in_keys=[tsc_env.reward_key]))
 
     return tsc_env
 

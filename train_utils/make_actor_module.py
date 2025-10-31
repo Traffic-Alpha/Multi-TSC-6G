@@ -4,7 +4,7 @@
 @Description: 创建 Actor Module
 1. 不是中心化, 即每个 agent 根据自己的 obs 进行决策
 2. 模型的权重是共享的, 因为 agent 是相同的类型, 所以只有一个 actor 的权重即可
-@LastEditTime: 2024-04-25 17:16:49
+LastEditTime: 2025-10-29 21:33:25
 '''
 import torch
 import importlib
@@ -26,7 +26,8 @@ class policy_module():
     def __init__(self, model_name, action_spec, device) -> None:
         ActorNetwork = load_actor_model(model_name)
         self.action_spec = action_spec
-        self.actor_net = ActorNetwork(action_size=action_spec.shape[-1]).to(device)
+        action_size = action_spec['agents']['action'].shape[-1]
+        self.actor_net = ActorNetwork(action_size=action_size).to(device)
         self.device = device
         logger.info(f'RL: Actor Model:\n {self.actor_net}')
 
@@ -41,8 +42,7 @@ class policy_module():
             spec=self.action_spec,
             in_keys={
                 "logits":("agents", "logits"), 
-                # "mask":("agents", "action_mask")
-            }, # 这里需要传入一个 mask, 根据 agent mask 自己进行计算
+            },
             out_keys=[("agents", "action")], # env.action_key
             distribution_class=OneHotCategorical,
             return_log_prob=True,

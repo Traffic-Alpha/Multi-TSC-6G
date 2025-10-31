@@ -5,7 +5,7 @@
 1. 微观特征: 车辆的属性
 2. 中观特征: 路段摄像头的数据
 3. 宏观特征: 6G as a sensor
-LastEditTime: 2024-09-17 16:45:13
+LastEditTime: 2025-10-16 17:00:12
 '''
 import time
 import numpy as np
@@ -132,9 +132,6 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
 
         Args:
             vehicle_data (Dict[str, Dict[str, Any]]): 仿真中车辆的信息, 具体例子见上面
-
-        Returns:
-            _type_: _description_
         """
         edge_cells = self.__initialize_edge_cells() # 初始化 cell 信息
 
