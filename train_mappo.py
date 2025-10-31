@@ -1,8 +1,8 @@
 '''
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
-@Description: 使用 MAPPO 算法进行训练, nohup python train_mappo.py > train_log.out 2>&1 &
-LastEditTime: 2024-09-20 12:59:32
+@Description: MAPPO, nohup python train_mappo.py > train_log.out 2>&1 &
+LastEditTime: 2025-10-30 15:56:15
 '''
 import os
 import json
@@ -17,7 +17,7 @@ from torchrl.data.replay_buffers.storages import LazyTensorStorage
 from torchrl.objectives import ClipPPOLoss, ValueEstimators
 from torchrl.record.loggers import generate_exp_name, get_logger
 
-# 环境相关
+# env
 from env_utils.make_multi_tsc_env import make_parallel_env
 
 # actor & critic
@@ -38,7 +38,7 @@ def load_environment_config(env_config_path):
         config = json.load(file)
     return config
 
-def train(exp_config_path:str):  # noqa: F821
+def train(exp_config_path:str, num_envs:int=1, cell_length:int=50):  # noqa: F821
     # 读取实验配置文件
     with open(exp_config_path, 'r') as file:
         exp_config = json.load(file)
@@ -46,7 +46,7 @@ def train(exp_config_path:str):  # noqa: F821
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     
     # 超参数设置
-    num_envs = 1 # 同时开启的环境个数
+    num_envs = num_envs # 同时开启的环境个数
     n_iters = 100 # 控制训练的时间长度
 
     exp_name = exp_config["experiment_name"]
@@ -80,7 +80,7 @@ def train(exp_config_path:str):  # noqa: F821
         tls_ids=tls_ids,
         action_space=action_space,
         road_ids=road_ids,
-        cell_length=100,
+        cell_length=cell_length,
         use_gui=False,
         log_file=log_path,
         device=device
@@ -98,8 +98,8 @@ def train(exp_config_path:str):  # noqa: F821
     
     # Data Collector
     collector = SyncDataCollector(
-        env,
-        policy,
+        env, # 收集数据的环境
+        policy, # 收集的策略
         device=device,
         storing_device=device,
         frames_per_batch=frames_per_batch,
@@ -119,7 +119,7 @@ def train(exp_config_path:str):  # noqa: F821
         critic=value_module,
         clip_epsilon=0.2,
         entropy_coef=0.01,
-        normalize_advantage=True,
+        normalize_advantage=False,
     )
     loss_module.set_keys(
         reward=env.reward_key,
@@ -217,12 +217,20 @@ def train(exp_config_path:str):  # noqa: F821
 
 
 if __name__ == "__main__":
-    scenario_names = ["3_ints", "SouthKorea_Songdo"] # 场景名称
-    model_names = [
-        "1_occmlp", "2_allcnn", "3_occmlp_noLaynorm", 
-        "4_occmlp_noAgentID", "5_occmlp_raw", "6_occmlp_rawLaynorm", 
-        "7_occmlp_noLaynorm_noAgentID", "8_occmlp_rawAgentID"
-    ] # 模型的名称
-    for scenario_name in scenario_names:
-        for model_name in model_names:
-            train(exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json'))
+    # scenario_names = ["3_ints", "SouthKorea_Songdo"] # 场景名称
+    # model_names = [
+    #     "1_occmlp", "2_allcnn", "3_occmlp_noLaynorm", 
+    #     "4_occmlp_noAgentID", "5_occmlp_raw", "6_occmlp_rawLaynorm", 
+    #     "7_occmlp_noLaynorm_noAgentID", "8_occmlp_rawAgentID"
+    # ] # 模型的名称
+    # for scenario_name in scenario_names:
+    #     for model_name in model_names:
+    #         train(exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json'))
+
+    scenario_name = "3_ints"
+    model_name = "v2x_light"
+    train(
+        num_envs=6, # 同时开启的环境数
+        cell_length=20, # 每一个 cell 的长度
+        exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json')
+    )
