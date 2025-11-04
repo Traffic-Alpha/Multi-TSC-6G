@@ -2,11 +2,10 @@
 @Author: WANG Maonan
 @Date: 2024-04-25 16:27:48
 @Description: Actor Network, Local Networks for decision
-LastEditTime: 2025-10-29 21:59:58
+LastEditTime: 2025-10-31 22:04:41
 '''
 import torch
 from torch import nn
-import torch.nn.functional as F
 
 class LocalFeatureProcessor(nn.Module):
     """局部特征处理器 - 处理每个路口的局部特征
@@ -86,9 +85,20 @@ class ActorNetwork(nn.Module):
 
     def forward(self, x):
         x = x['local'] # actor 只使用 local 信息, x['local']
+        
+        added_bs = False
+        if len(x.shape) == 4:  # 没有 bs 维度
+            x = x.unsqueeze(0) # 添加 bs 维度
+            added_bs = True
+            
         batch_size, num_intersections, time_steps, num_directions, feat_dim = x.shape
 
         x = self.local_processor(x)
         x = self.fc3(x)
+
+        # 如果之前添加了虚拟的 bs 维度，现在移除它, eval 的时候会用到
+        if added_bs:
+            x = x.squeeze(0) # 去除 bs 维度
+            return x.view(num_intersections, -1)
 
         return x.view(batch_size, num_intersections, -1)

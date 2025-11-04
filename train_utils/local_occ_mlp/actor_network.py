@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-25 16:27:48
 @Description: Actor Network
-LastEditTime: 2024-09-17 17:50:17
+LastEditTime: 2025-11-03 12:51:17
 '''
 from torch import nn
 import torch.nn.functional as F
@@ -25,8 +25,8 @@ class ActorNetwork(nn.Module):
         env_batch_nagents = list(x_local.shape[:-3])  # 包含 n_envs, batchsize 和 n_agents
         timeseries, movement, feature_num = x_local.shape[-3:]
 
-        x_local = x_local[..., 0].view(-1, timeseries * movement)  # 只获得占有率
-        x_agent_embedding = self.agent_embedding(x_agent_id.view(-1).long())
+        x_local = x_local[..., 0].view(-1, timeseries * movement)  # 获得不同时间的占有率
+        x_agent_embedding = self.agent_embedding(x_agent_id.view(-1).long()) # 将 agent id 转换为 embedding
 
         # First layer
         out = self.fc1(x_local)

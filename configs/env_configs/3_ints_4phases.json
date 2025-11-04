@@ -1,14 +1,16 @@
 {
-  "sumocfg": "./sumo_nets/3_ints_4phases/env/three_junctions.sumocfg",
+  "sumocfg": "./sumo_nets/3_ints_4phases/three_junctions.sumocfg",
   "sumonet": "./sumo_nets/3_ints_4phases/env/three_junctions.net.xml",
-  "simulation_time": 1500,
-  "simulation_steps": 200,
+  "simulation_time": 1600,
+  "simulation_steps": 300,
   "junction_ids": ["J1", "J2", "J3"],
   "action_space": {
     "J1": 4,
     "J2": 4,
     "J3": 4
   },
-  "road_ids": []
+  "edge_number": 20,
+  "cell_number": 8,
+  "cell_length": 30,
+  "road_ids": ["-E0", "-E1", "-E2", "-E3", "-E4", "-E5", "-E6", "-E7", "-E8", "-E9", "E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9"]
 }
-  
