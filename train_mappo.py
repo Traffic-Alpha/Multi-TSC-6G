@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-10-29 22:46:25
 @Description: MAPPO, nohup python train_mappo.py > train_log.out 2>&1 &
-LastEditTime: 2025-10-30 15:56:15
+LastEditTime: 2025-11-04 16:32:34
 '''
 import os
 import json
@@ -38,7 +38,7 @@ def load_environment_config(env_config_path):
         config = json.load(file)
     return config
 
-def train(exp_config_path:str, num_envs:int=1, cell_length:int=50):  # noqa: F821
+def train(exp_config_path:str, num_envs:int=1):  # noqa: F821
     # 读取实验配置文件
     with open(exp_config_path, 'r') as file:
         exp_config = json.load(file)
@@ -49,11 +49,15 @@ def train(exp_config_path:str, num_envs:int=1, cell_length:int=50):  # noqa: F82
     num_envs = num_envs # 同时开启的环境个数
     n_iters = 100 # 控制训练的时间长度
 
-    exp_name = exp_config["experiment_name"]
-    model_name = exp_config["model_name"]
+    exp_name = exp_config["experiment_name"] # 实验名称, 存储的文件夹
+    model_name = exp_config["model_name"] # 模型结构
+    
+    road_ids = env_config['road_ids'] # 环境的 edge 的 id
+    edge_number = env_config["edge_number"] # 环境包含的 edge 数量
+    cell_length = env_config["cell_length"] # 每个 cell 的长度
+    cell_number = env_config["cell_number"] # 每个 road 包含的 cell 的数量
 
     action_space = env_config["action_space"]
-    road_ids = env_config['road_ids']
     tls_ids = env_config["junction_ids"]
     num_seconds = env_config["simulation_time"] # 仿真时间
     frames_per_batch = num_envs*env_config["simulation_steps"]*2 # 差不多是 2 轮游戏
@@ -80,7 +84,9 @@ def train(exp_config_path:str, num_envs:int=1, cell_length:int=50):  # noqa: F82
         tls_ids=tls_ids,
         action_space=action_space,
         road_ids=road_ids,
+        edge_number=edge_number,
         cell_length=cell_length,
+        cell_number=cell_number,
         use_gui=False,
         log_file=log_path,
         device=device
@@ -217,20 +223,9 @@ def train(exp_config_path:str, num_envs:int=1, cell_length:int=50):  # noqa: F82
 
 
 if __name__ == "__main__":
-    # scenario_names = ["3_ints", "SouthKorea_Songdo"] # 场景名称
-    # model_names = [
-    #     "1_occmlp", "2_allcnn", "3_occmlp_noLaynorm", 
-    #     "4_occmlp_noAgentID", "5_occmlp_raw", "6_occmlp_rawLaynorm", 
-    #     "7_occmlp_noLaynorm_noAgentID", "8_occmlp_rawAgentID"
-    # ] # 模型的名称
-    # for scenario_name in scenario_names:
-    #     for model_name in model_names:
-    #         train(exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json'))
-
     scenario_name = "3_ints"
-    model_name = "v2x_light"
+    model_name = "occ_mlp" # v2x_light, local_occ_mlp
     train(
-        num_envs=6, # 同时开启的环境数
-        cell_length=20, # 每一个 cell 的长度
+        num_envs=12, # 同时开启的环境数
         exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json')
     )

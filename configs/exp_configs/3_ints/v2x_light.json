@@ -1,0 +1,5 @@
+{
+    "experiment_name": "Exp-V2XLight",
+    "environment_name": "3_ints_4phases.json",
+    "model_name": "v2x_light"
+}

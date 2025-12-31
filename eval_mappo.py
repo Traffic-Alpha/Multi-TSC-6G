@@ -1,8 +1,8 @@
 '''
 @Author: WANG Maonan
 @Date: 2024-04-15 23:41:58
-@Description: 加载 MAPPO 模型进行测试
-LastEditTime: 2024-09-20 13:00:04
+@Description: 测试 MAPPO 模型
+LastEditTime: 2025-11-03 15:29:23
 '''
 import os
 import json
@@ -28,8 +28,8 @@ if __name__ == '__main__':
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # 定义实验名称
-    scenario_name = "SouthKorea_Songdo" # 场景名称
-    model_name = "1_occmlp" # 模型的名称
+    scenario_name = "3_ints" # 场景名称
+    model_name = "occ_mlp" # 模型的名称
     exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json')
 
     # 读取配置文件
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         num_seconds=num_seconds,
         road_ids=road_ids,
         use_gui=True,
-        cell_length=100,
+        cell_length=20,
         log_file=log_path,
         device=device,
         trip_info=path_convert('./trip_info.xml'),
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     # 2. Load Model Dict
     action_spec = tsc_env.action_spec
     policy_gen = policy_module(model_name, action_spec, device)
-    policy_gen.load_model(os.path.join(model_path, "actor.pkl"))
+    policy_gen.load_model(os.path.join(model_path, "95_actor.pkl"))
     policy = policy_gen.make_policy_module()
 
     # 3. Simulation with environment using the policy, ExplorationType.MODE, ExplorationType.RANDOM

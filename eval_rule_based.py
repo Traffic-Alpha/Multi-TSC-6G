@@ -1,8 +1,8 @@
 '''
 Author: Maonan Wang
 Date: 2024-09-23 13:42:56
-LastEditTime: 2024-10-02 17:13:56
-LastEditors: Maonan Wang
+LastEditTime: 2025-11-03 18:33:52
+LastEditors: WANG Maonan
 Description: 测试 rule-based policy 的效果
 FilePath: /Multi-TSC-6G/eval_rule_based.py
 '''
@@ -58,10 +58,15 @@ def make_multi_envs(
 
 if __name__ == '__main__':
     # 指定测试的策略
-    eval_policy = actuated_policy
+    eval_policy = ft_policy_2
     
     # 读取实验配置文件
-    env_config = load_environment_config("southKorea_Songdo.json")
+    scenario_name = "3_ints" # 场景名称
+    model_name = "actuated_policy" # 模型的名称
+    exp_config_path=path_convert(f'./configs/exp_configs/{scenario_name}/{model_name}.json')
+    with open(exp_config_path, 'r') as file:
+        exp_config = json.load(file)
+    env_config = load_environment_config(exp_config['environment_name'])
     
     sumo_cfg = path_convert(env_config['sumocfg'])
     net_file = path_convert(env_config['sumonet'])
@@ -69,7 +74,7 @@ if __name__ == '__main__':
     road_ids = env_config['road_ids']
     log_path = path_convert('./log/')
     env = make_multi_envs(
-        tls_ids=['J1', 'J2', 'J3'], # 控制 3 个路口, 都是 2 相位
+        tls_ids=env_config["junction_ids"],
         sumo_cfg=sumo_cfg,
         net_file=net_file,
         num_seconds=num_seconds,

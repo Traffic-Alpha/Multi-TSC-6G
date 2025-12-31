@@ -2,10 +2,17 @@
  * @Author: WANG Maonan
  * @Date: 2024-04-09 21:28:52
  * @Description: Multi-Agent Traffic Signal Control under 6G
- * @LastEditTime: 2024-09-16 16:56:41
+ * @LastEditTime: 2025-10-31 21:18:15
 -->
 
 Multi Agents for Traffic Signal Control Based on Global and Local Info (Network as a Sensor)
+
+TODO
+- CELL LENGTH 可以写在 config 文件里面
+
+## 文件结构
+
+check_global_local_env.py: 
 
 
 ## 环境设计

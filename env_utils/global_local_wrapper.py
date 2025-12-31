@@ -5,7 +5,7 @@
 1. 微观特征: 车辆的属性
 2. 中观特征: 路段摄像头的数据
 3. 宏观特征: 6G as a sensor
-LastEditTime: 2025-10-16 17:00:12
+LastEditTime: 2025-11-04 16:04:23
 '''
 import time
 import numpy as np
@@ -108,7 +108,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
                     _distance = calculate_distance(veh_data['position'], intersection_pos)
                     _speed = veh_data['speed']
                     _lane_position = veh_data['lane_position']/self.lane_infos[_lane_id]['length']
-                    _waiting_time = veh_data['waiting_time']
+                    _waiting_time = veh_data['accumulated_waiting_time']
                     _accumulated_waiting_time = veh_data['accumulated_waiting_time']
                     _edge_id = one_hot_encode(self.road_ids, veh_data['road_id'])
                     closest_vehicles[intersection_id].append([_distance, _speed, _lane_position, _waiting_time, _accumulated_waiting_time] + _edge_id)
@@ -144,7 +144,7 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
                 
                 cell = edge_cells[edge_id][cell_index]
                 cell['vehicles'] += 1
-                cell['total_waiting_time'] += vehicle_info['waiting_time']
+                cell['total_waiting_time'] += vehicle_info['accumulated_waiting_time']
                 cell['total_speed'] += vehicle_info['speed']
                 cell['total_co2_emission'] += vehicle_info['co2_emission']
 
@@ -233,12 +233,12 @@ class GlobalLocalInfoWrapper(gym.Wrapper):
     def process_reward(self, vehicle_state):
         """
         Calculate the average waiting time for vehicles at all intersections.
-        这里是按整个路网计算一个统一的奖励, 而不是每一个路口计算名一个奖励
+        这里是按整个路网计算一个统一的奖励, 而不是每一个路口计算名一个奖励 (使用所有车辆的平均等待时间)
 
         :param vehicle_state: The state of vehicles in the environment.
         :return: The negative average waiting time as the reward.
         """
-        waiting_times = [veh['waiting_time'] for veh in vehicle_state.values()]
+        waiting_times = [veh['accumulated_waiting_time'] for veh in vehicle_state.values()]
         
         return -np.mean(waiting_times) if waiting_times else 0
 

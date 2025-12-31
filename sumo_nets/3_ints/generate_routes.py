@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2023-09-01 13:45:26
 @Description: 给场景生成路网
-@LastEditTime: 2024-04-15 23:48:04
+LastEditTime: 2025-10-31 21:55:29
 '''
 import numpy as np
 from tshub.utils.get_abs_path import get_abs_path
@@ -21,17 +21,17 @@ generate_route(
     sumo_net=sumo_net,
     interval=[5,5,5,5], 
     edge_flow_per_minute={
-        'E0': [np.random.randint(15, 20) for _ in range(4)],
-        '-E7': [np.random.randint(15, 20) for _ in range(4)],
+        'E0': [np.random.randint(5, 7) for _ in range(4)],
+        '-E7': [np.random.randint(5, 7) for _ in range(4)],
         
-        '-E4': [np.random.randint(5, 10) for _ in range(4)],
-        'E3': [np.random.randint(5, 10) for _ in range(4)],
+        '-E4': [np.random.randint(1, 5) for _ in range(4)],
+        'E3': [np.random.randint(1, 4) for _ in range(4)],
 
-        'E5': [np.random.randint(5, 10) for _ in range(4)],
-        '-E6': [np.random.randint(5, 10) for _ in range(4)],
+        'E5': [np.random.randint(1, 5) for _ in range(4)],
+        '-E6': [np.random.randint(1, 5) for _ in range(4)],
 
-        'E8': [np.random.randint(5, 10) for _ in range(4)],
-        '-E9': [np.random.randint(5, 10) for _ in range(4)],
+        'E8': [np.random.randint(1, 5) for _ in range(4)],
+        '-E9': [np.random.randint(1, 5) for _ in range(4)],
     }, # 每分钟每个 edge 有多少车
     edge_turndef={
         'E0__E1': [0.8]*4,

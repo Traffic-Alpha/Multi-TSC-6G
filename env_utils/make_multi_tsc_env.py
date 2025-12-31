@@ -2,7 +2,7 @@
 @Author: WANG Maonan
 @Date: 2024-04-15 03:58:19
 @Description: 创建多智能体的环境
-LastEditTime: 2025-10-30 15:55:53
+LastEditTime: 2025-11-04 16:23:46
 '''
 from typing import List, Dict
 from env_utils.tsc_env import TSCEnvironment
@@ -25,7 +25,7 @@ def make_multi_envs(
         num_seconds:int, use_gui:bool,
         road_ids:List[str],
         action_space:Dict[str, int],
-        cell_length:int,
+        edge_number:int, cell_length:int, cell_number:int,
         log_file:str, device:str='cpu',
         **output_files
     ):
@@ -39,7 +39,7 @@ def make_multi_envs(
         use_gui=use_gui,
     )
     tsc_env = GlobalLocalInfoWrapper(tsc_env, filepath=log_file, road_ids=road_ids, cell_length=cell_length)
-    tsc_env = TSCEnvironmentPZ(tsc_env, action_space)
+    tsc_env = TSCEnvironmentPZ(tsc_env, action_space, edge_number=edge_number, cell_number=cell_number)
     tsc_env = PettingZooWrapper(
         tsc_env, 
         group_map={'agents':tls_ids}, # agent 可以分类, 例如不同动作空间大小
@@ -61,7 +61,7 @@ def make_parallel_env(
         num_seconds:int, use_gui:bool,
         road_ids:List[str],
         action_space:Dict[str, int],
-        cell_length:int,
+        edge_number:int, cell_length:int, cell_number:int,
         log_file:str,
         device:str='cpu'
     ):
@@ -75,6 +75,8 @@ def make_parallel_env(
             "net_file": net_file,
             "action_space": action_space,
             "road_ids": road_ids,
+            "edge_number": edge_number,
+            "cell_number": cell_number,
             "cell_length": cell_length,
             "use_gui" : use_gui,
             "log_file": log_file+f'/{i}',

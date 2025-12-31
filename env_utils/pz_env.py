@@ -6,7 +6,7 @@
     1. https://pettingzoo.farama.org/content/environment_creation/
     2. https://pettingzoo.farama.org/tutorials/custom_environment/3-action-masking/ (添加 action mask)
 => 由于不是每一个时刻所有 TSC 都可以做动作, 这里我们就只返回可以做动作的 TSC 的信息, 也就是 agent 的数量是一直在改变的
-LastEditTime: 2024-09-17 17:15:32
+LastEditTime: 2025-11-04 16:34:32
 '''
 import functools
 import numpy as np
@@ -20,7 +20,7 @@ class TSCEnvironmentPZ(ParallelEnv):
         "name": "multi_agent_tsc_env",
     }
     
-    def __init__(self, env, action_space):
+    def __init__(self, env, action_space, edge_number, cell_number):
         super().__init__()
         self.env = env
         self.render_mode = None
@@ -31,7 +31,7 @@ class TSCEnvironmentPZ(ParallelEnv):
 
         # spaces
         self.action_spaces = {
-            _tls_id:gym.spaces.Discrete(action_space[_tls_id]) # 每一个信号灯的相位个数
+            _tls_id: gym.spaces.Discrete(action_space[_tls_id]) # 每一个信号灯的相位个数
             for _tls_id in self.env.tls_ids
         }
         self.observation_spaces = {
@@ -41,17 +41,17 @@ class TSCEnvironmentPZ(ParallelEnv):
                     low=np.zeros((5,12,7)),
                     high=np.ones((5,12,7)),
                     shape=(5,12,7,)
+                ), # 5 个时刻, 12 个 movement, 7 个特征
+                "global": gym.spaces.Box(
+                    low=np.zeros((edge_number,5,cell_number,3)), # 3ints-(20,5,11,3); others-(294,5,56,3)
+                    high=np.ones((edge_number,5,cell_number,3)),
+                    shape=(edge_number,5,cell_number,3,)
+                ), # 20 个 edge, 每个 edge 包含 5s 的数据, 每个 edge 有 11 个 cell, 每个 cell 有 3 个信息
+                "global_mask": gym.spaces.Box(
+                    low=np.zeros((edge_number,cell_number)), # 3int-(20,11)
+                    high=np.ones((edge_number,cell_number)),
+                    shape=(edge_number,cell_number)
                 ),
-                # "global": gym.spaces.Box(
-                #     low=np.zeros((294,5,56,3)), # 3ints-(20,5,11,3)
-                #     high=np.ones((294,5,56,3)),
-                #     shape=(294,5,56,3,)
-                # ), # 20 个 edge, 每个 edge 包含 5s 的数据, 每个 edge 有 11 个 cell, 每个 cell 有 3 个信息
-                # "global_mask": gym.spaces.Box(
-                #     low=np.zeros((294,56)), # 3int-(20,11)
-                #     high=np.ones((294,56)),
-                #     shape=(294,56)
-                # ),
                 # "vehicle": gym.spaces.Box(
                 #     low=np.zeros((5,100,299)), # TODO, 这里车辆的 road id 也是需要修改的
                 #     high=100*np.ones((5,100,299)),
@@ -82,9 +82,9 @@ class TSCEnvironmentPZ(ParallelEnv):
         observations = {
             _tls_id: {
                 'agent_id': _tls_index,
-                'local': processed_local_obs[_tls_id],
-                # 'global': processed_global_obs,
-                # 'global_mask': edge_cell_mask,
+                'local': processed_local_obs[_tls_id], # 每个路口对应的信息
+                'global': processed_global_obs, # 全局公用的信息
+                'global_mask': edge_cell_mask,
                 # 'vehicle': processed_veh_obs[_tls_id],
                 # 'vehicle_mask': processed_veh_mask[_tls_id]
             }
@@ -124,8 +124,8 @@ class TSCEnvironmentPZ(ParallelEnv):
             pz_observations[_tls_id] = {
                 'agent_id': _tls_index,
                 'local': processed_local_obs[_tls_id],
-                # 'global': processed_global_obs,
-                # 'global_mask': edge_cell_mask,
+                'global': processed_global_obs,
+                'global_mask': edge_cell_mask,
                 # 'vehicle': processed_veh_obs[_tls_id],
                 # 'vehicle_mask': processed_veh_mask[_tls_id]
             }
